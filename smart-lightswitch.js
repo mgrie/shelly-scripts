@@ -3,6 +3,18 @@
 *
 * Autor: Marco Grießhammer (https://github.com/mgrie)
 * Date: 21.05.2024
+*
+* Key functions:
+*  - 'Pump' (double Press, triple Press, longpress) for a longer auto off delay
+*  - configurable continious light
+*  - External Triggers via MQTT
+*
+* MQTT Payload:
+*  {
+*    action: <string>, // on || off || toogle
+*    delay: <int>      // delay in seconds or null for continious light
+*  }
+*
 **/
 
 print("SmartLightSwitch Script: startup");
@@ -26,6 +38,56 @@ let CONFIG = {
   mqttTopic: "shelly/garage/light"
 };
 
+////// CORE FUNCTIONS //////
+
+/**
+* Check currentr switch status
+**/
+function isSwitchOn(){
+	return Shelly.getComponentStatus("switch:0").output;
+}
+
+/**
+* setAutoOffFalse
+**/
+function setAutoOffFalse(callback){
+  Shelly.call("Switch.SetConfig", {'id': 0, 'config': {'auto_off': false}}, callback);
+}
+
+/**
+*' setAutoOffDelay with optional delay time
+**/
+function setAutoOffDelay(delay, callback){
+	if(delay > 0){
+		Shelly.call("Switch.SetConfig", {'id': 0, 'config': {'auto_off': true, 'auto_off_delay': delay}}, callback);
+	} else {
+		setAutoOffFalse(callback);
+	}
+}
+
+/**
+* setSwitchOn with optional delay time
+**/
+function setSwitchOn(delay, callback){
+	setAutoOffDelay(delay, function(ud){
+		Shelly.call("Switch.set", {'id': 0, 'on': true}, callback);
+	});
+}
+
+/**
+*' setSwitchOff
+**/
+function setSwitchOff(callback){
+	Shelly.call("Switch.set", {'id': 0, 'on': false}, callback);
+}
+
+////// ABSTRACT FUNCTIONS //////
+
+/**
+* toogleSwitch
+*
+* Toogle Switch to on or off with optional auto off delay
+**/
 function toogleSwitch(delay, callback){
   if(isSwitchOn()){
     setSwitchOff(callback);
@@ -34,37 +96,14 @@ function toogleSwitch(delay, callback){
   }  
 }
 
-function isSwitchOn(){
-	return Shelly.getComponentStatus("switch:0").output;
-}
+////// HANDLERS //////
 
-function setAutoOffFalse(callback){
-  Shelly.call("Switch.SetConfig", {'id': 0, 'config': {'auto_off': false}}, callback);
-}
-
-function setAutoOffDelay(delay, callback){
-	if(delay > 0){
-	    // print('Set AutoOff Delay: ' + delay);
-		Shelly.call("Switch.SetConfig", {'id': 0, 'config': {'auto_off': true, 'auto_off_delay': delay}}, callback);
-	} else {
-		setAutoOffFalse(callback);
-	}
-}
-
-function setSwitchOn(delay, callback){
-    // print("Set Switch On, Delay: " + delay);
-	setAutoOffDelay(delay, function(ud){
-		Shelly.call("Switch.set", {'id': 0, 'on': true}, callback);
-	});
-}
-
-function setSwitchOff(callback){
-	Shelly.call("Switch.set", {'id': 0, 'on': false}, callback);
-}
-
+/**
+* Event Handler
+**/
 Shelly.addEventHandler(function(e) {
   
-  // Input Button
+  // Handle Input Button
   if (e.component === "input:0") {
     switch (e.info.event) {
       case "single_push":
@@ -82,7 +121,7 @@ Shelly.addEventHandler(function(e) {
     }
   }
   
-  // Dedect physical switch off and reset auto off value
+  // External switch off dedection: reset auto off value
   if (e.component === "switch:0") {
     // Explicit, could be undefined!
     if(e.info.state === false){
@@ -91,7 +130,10 @@ Shelly.addEventHandler(function(e) {
   }
 });
 
-// Optional MQTT Trigger
+
+/**
+* Optional: External MQTT trigger
+**/
 if(MQTT.isConnected() && CONFIG.mqttTopic){
    MQTT.subscribe(CONFIG.mqttTopic, function(topic, message, userdata) {
     var data = JSON.parse(message);
@@ -109,15 +151,5 @@ if(MQTT.isConnected() && CONFIG.mqttTopic){
     
   });   
 }
-
-/*
-function testMqtt(){
-  var message = {
-    action: "on", // on || off || toogle
-    delay: 120
-  }
-  MQTT.publish(CONFIG.mqttTopic, JSON.stringify(message), 0, false);
-}
-*/
 
 print("SmartLightSwitch Script: running");
