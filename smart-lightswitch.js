@@ -1,11 +1,22 @@
-print("Start SmartLightSwitch Script");
+print("SmartLightSwitch Script: startup");
 
 let CONFIG = {
-  time1: 2*60, // 2 Minuten
-  time2: 5*60, // 5 Minuten
-  time3: 10*60, // 10 Minuten
-  timelong: null, // Dauerlicht
-  mqttTopic: "shelly/garage/licht"
+  /**
+  * Values:
+  *  - auto off delay in seconds
+  *  - 'null' for continious light
+  **/
+  time1: 2*60, // 2 minutes
+  time2: 5*60, // 5 minutes
+  time3: 10*60, // 10 minutes
+  timelong: null, // continious light
+	
+  /**
+  * Values:
+  *  - MQTT Topic
+  *  - null: disable external Trigger
+  **/
+  mqttTopic: "shelly/garage/light"
 };
 
 function toogleSwitch(delay, callback){
@@ -21,7 +32,6 @@ function isSwitchOn(){
 }
 
 function setAutoOffFalse(callback){
-  // print('Set AutoOff false');
   Shelly.call("Switch.SetConfig", {'id': 0, 'config': {'auto_off': false}}, callback);
 }
 
@@ -42,7 +52,6 @@ function setSwitchOn(delay, callback){
 }
 
 function setSwitchOff(callback){
-    // print("Set Switch Off");
 	Shelly.call("Switch.set", {'id': 0, 'on': false}, callback);
 }
 
@@ -52,35 +61,30 @@ Shelly.addEventHandler(function(e) {
   if (e.component === "input:0") {
     switch (e.info.event) {
       case "single_push":
-        // print("Button was pushed");
         toogleSwitch(CONFIG.time1);
         break;
       case "double_push":
-        //print("Button was double pushed");
         toogleSwitch(CONFIG.time2);
         break;
       case "triple_push":
-        //print("Button was triple pushed");
         toogleSwitch(CONFIG.time3);
         break;
       case "long_push":
-        //print("Button was long pushed");
         toogleSwitch(CONFIG.timelong);
         break;
     }
   }
   
-  // Output Light Switch
+  // Dedect physical switch off and reset auto off value
   if (e.component === "switch:0") {
-    // could be undefined!
+    // Explicit, could be undefined!
     if(e.info.state === false){
-      // print('Switch Off Dedection');
       setAutoOffFalse();
     }  
   }
 });
 
-// Activate MQTT Trigger
+// Optional MQTT Trigger
 if(MQTT.isConnected() && CONFIG.mqttTopic){
    MQTT.subscribe(CONFIG.mqttTopic, function(topic, message, userdata) {
     var data = JSON.parse(message);
@@ -109,4 +113,4 @@ function testMqtt(){
 }
 */
 
-print("Script is running");
+print("SmartLightSwitch Script: running");
