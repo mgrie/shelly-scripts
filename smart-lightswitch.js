@@ -1,3 +1,10 @@
+/**
+* Smart LightSwitch for Shelly
+*
+* Autor: Marco Grießhammer (https://github.com/mgrie)
+* Date: 21.05.2024
+**/
+
 print("SmartLightSwitch Script: startup");
 
 let CONFIG = {
