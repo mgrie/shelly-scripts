@@ -4,7 +4,8 @@ let CONFIG = {
   time1: 2*60, // 2 Minuten
   time2: 5*60, // 5 Minuten
   time3: 10*60, // 10 Minuten
-  timelong: null // Dauerlicht
+  timelong: null, // Dauerlicht
+  mqttTopic: "shelly/garage/licht"
 };
 
 function toogleSwitch(delay, callback){
@@ -78,5 +79,34 @@ Shelly.addEventHandler(function(e) {
     }  
   }
 });
+
+// Activate MQTT Trigger
+if(MQTT.isConnected() && CONFIG.mqttTopic){
+   MQTT.subscribe(CONFIG.mqttTopic, function(topic, message, userdata) {
+    var data = JSON.parse(message);
+    switch(data.action){
+      case "on":
+        setSwitchOn(data.delay);
+        break;
+      case "off":
+        setSwitchOff();
+        break;
+      case "toogle":
+        toogleSwitch(data.delay);
+        break; 
+    }
+    
+  });   
+}
+
+/*
+function testMqtt(){
+  var message = {
+    action: "on", // on || off || toogle
+    delay: 120
+  }
+  MQTT.publish(CONFIG.mqttTopic, JSON.stringify(message), 0, false);
+}
+*/
 
 print("Script is running");
