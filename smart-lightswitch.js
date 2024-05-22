@@ -2,7 +2,7 @@
 * Smart LightSwitch for Shelly
 *
 * Autor: Marco Grießhammer (https://github.com/mgrie)
-* Date: 21.05.2024
+* Date: 22.05.2024
 *
 * Key functions:
 *  - 'Pump' (double Press, triple Press, longpress) for a longer auto off delay
@@ -29,6 +29,8 @@ let CONFIG = {
   time2: 5*60, // 5 minutes
   time3: 10*60, // 10 minutes
   timelong: null, // continious light
+  
+  autoInit: true,
 	
   /**
   * Values:
@@ -99,43 +101,58 @@ function toogleSwitch(delay, callback){
 ////// HANDLERS //////
 
 /**
-* Event Handler
+* register Event Handler
 **/
-Shelly.addEventHandler(function(e) {
+function registerHandlers(){
+  Shelly.addEventHandler(function(e) {
   
-  // Handle Input Button
-  if (e.component === "input:0") {
-    switch (e.info.event) {
-      case "single_push":
-        toogleSwitch(CONFIG.time1);
-        break;
-      case "double_push":
-        toogleSwitch(CONFIG.time2);
-        break;
-      case "triple_push":
-        toogleSwitch(CONFIG.time3);
-        break;
-      case "long_push":
-        toogleSwitch(CONFIG.timelong);
-        break;
+    // Handle Input Button
+    if (e.component === "input:0") {
+      switch (e.info.event) {
+        case "single_push":
+          toogleSwitch(CONFIG.time1);
+          break;
+        case "double_push":
+          toogleSwitch(CONFIG.time2);
+          break;
+        case "triple_push":
+          toogleSwitch(CONFIG.time3);
+          break;
+        case "long_push":
+          toogleSwitch(CONFIG.timelong);
+          break;
+      }
     }
-  }
   
-  // External switch off dedection: reset auto off value
-  if (e.component === "switch:0") {
-    // Explicit, could be undefined!
-    if(e.info.state === false){
-      setAutoOffFalse();
-    }  
-  }
-});
+    // External switch off dedection: reset auto off value
+    if (e.component === "switch:0") {
+      // Explicit, could be undefined!
+      if(e.info.state === false){
+        setAutoOffFalse();
+      }  
+    }
+  });  
+}
+
 
 
 /**
 * Optional: External MQTT trigger
 **/
-if(MQTT.isConnected() && CONFIG.mqttTopic){
-   MQTT.subscribe(CONFIG.mqttTopic, function(topic, message, userdata) {
+function startMqttTrigger(){
+  
+  if(CONFIG.mqttTopic == null){
+    print('MQTT Trigger not enabled');
+    return;
+  }
+  
+  if(!MQTT.isConnected()){
+    print('MQTT not connected');
+    return;
+  }
+    
+
+  MQTT.subscribe(CONFIG.mqttTopic, function(topic, message, userdata) {
     var data = JSON.parse(message);
     switch(data.action){
       case "on":
@@ -147,9 +164,39 @@ if(MQTT.isConnected() && CONFIG.mqttTopic){
       case "toogle":
         toogleSwitch(data.delay);
         break; 
-    }
-    
+      }
   });   
 }
 
-print("SmartLightSwitch Script: running");
+function autoInit(){
+  if(!CONFIG.autoInit){
+    print('autoInit disabled');
+    return;
+  }
+
+  Shelly.call("Switch.SetConfig", {"id": 0, "config": {"in_mode": "detached", "initial_state": "off"}}, 
+    function (result, error_code, error_message) {
+      if (error_code !== 0) {
+        print("Error setting input mode: " + error_message);
+      }
+      else {
+        Shelly.call("Switch.SetConfig", {"id": 0, "config": {"input_mode": "button"}}, 
+          function (result, error_code, error_message) {
+                  if (error_code !== 0) {
+                    print("Error setting input mode: " + error_message);
+                  }
+          }
+        );
+      }
+    } 
+  );  
+}
+
+function main(){
+  autoInit();  
+  registerHandlers();
+  startMqttTrigger();
+  print("SmartLightSwitch Script: running");  
+}
+
+main();
