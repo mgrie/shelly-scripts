@@ -37,7 +37,7 @@ let CONFIG = {
   *  - MQTT Topic
   *  - null: disable external Trigger
   **/
-  mqttTopic: "shelly/garage/light"
+  mqttTopic: "shelly/mydevice/light"
 };
 
 ////// CORE FUNCTIONS //////
