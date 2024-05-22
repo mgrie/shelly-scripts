@@ -30,7 +30,7 @@ let CONFIG = {
   time3: 10*60, // 10 minutes
   timelong: null, // continious light
   
-  autoInit: true,
+  autoConfig: true,
 	
   /**
   * Values:
@@ -168,9 +168,9 @@ function startMqttTrigger(){
   });   
 }
 
-function autoInit(){
-  if(!CONFIG.autoInit){
-    print('autoInit disabled');
+function autoConfig(){
+  if(!CONFIG.autoConfig){
+    print('autoConfig disabled');
     return;
   }
 
@@ -193,7 +193,7 @@ function autoInit(){
 }
 
 function main(){
-  autoInit();  
+  autoConfig();  
   registerHandlers();
   startMqttTrigger();
   print("SmartLightSwitch Script: running");  
