@@ -8,6 +8,8 @@
 *  - 'Pump' (double Press, triple Press, longpress) for a longer auto off delay
 *  - configurable continious light
 *  - External Triggers via MQTT
+*  - AutoConfig
+*  - Multiple entities
 *
 * MQTT Payload:
 *  {
@@ -21,25 +23,32 @@ print("SmartLightSwitch Script: startup");
 
 let CONFIG = {
   autoConfig: true,
-	
-  /**
-  * Values:
-  *  - MQTT Topic
-  *  - null: disable external Trigger
-  **/
-  mqttTopic: "shelly/mydevice/light",
-  
-  inputId: 0,
-  switchId: 0,
+	 
+  entities: [
+    {
+      inputId: 0,
+      inputType: "button",
+      switchId: 0,
+      switchType: "button",
+      
       /**
       * Values:
       *  - auto off delay in seconds
       *  - 'null' for continious light
       **/
-  time1: 2*60, // 2 minutes
-  time2: 5*60, // 5 minutes
-  time3: 10*60, // 10 minutes
-  timelong: null, // continious light
+      time1: 2*60, // 2 minutes
+      time2: 5*60, // 5 minutes
+      time3: 10*60, // 10 minutes
+      timelong: null, // continious light
+      
+      /**
+      * Values:
+      *  - MQTT Topic
+      *  - null: disable external Trigger
+      **/
+      mqttTopic: "shelly/mydevice/light",
+    }
+  ]
 };
 
 ////// CORE FUNCTIONS //////
@@ -139,37 +148,37 @@ function registerHandlers(config){
 /**
 * Optional: External MQTT trigger
 **/
-function startMqttTrigger(mqttTopic, switchId){
+function startMqttTrigger(config){
  
   if(!MQTT.isConnected()){
     print('MQTT not connected');
     return;
   }
   
-  MQTT.subscribe(mqttTopic, function(topic, message, switchId) {
+  MQTT.subscribe(config.mqttTopic, function(topic, message, switchId) {
     var data = JSON.parse(message);
     switch(data.action){
       case "on":
-        setSwitchOn(config.switchId, data.delay);
+        setSwitchOn(switchId, data.delay);
         break;
       case "off":
-        setSwitchOff(config.switchId);
+        setSwitchOff(switchId);
         break;
       case "toogle":
-        toogleSwitch(config.switchId, data.delay);
+        toogleSwitch(switchId, data.delay);
         break; 
       }
-  }, switchId);   
+  }, config.switchId);   
 }
 
-function autoConfig(switchId){
-  Shelly.call("Switch.SetConfig", {"id": switchId, "config": {"in_mode": "detached", "initial_state": "off"}}, 
+function autoConfig(entityConfig){
+  Shelly.call("Switch.SetConfig", {"id": entityConfig.switchId, "config": {"in_mode": "detached", "initial_state": "off"}}, 
     function (result, error_code, error_message) {
       if (error_code !== 0) {
         print("Error setting input mode: " + error_message);
       }
       else {
-        Shelly.call("Switch.SetConfig", {"id": switchId, "config": {"input_mode": "button"}}, 
+        Shelly.call("Switch.SetConfig", {"id": entityConfig.switchId, "config": {"input_mode": entityConfig.switchType}}, 
           function (result, error_code, error_message) {
                   if (error_code !== 0) {
                     print("Error setting input mode: " + error_message);
@@ -185,20 +194,26 @@ function main(){
 
   // AutoConfig
   if(CONFIG.autoConfig){
-    autoConfig(CONFIG.switchId);
+      CONFIG.entities.forEach(function(entityConfig) {
+        autoConfig(entityConfig);
+      });
   } else {
     print('autoConfig disabled');
   }
   
   // Main Handlers  
-  registerHandlers(CONFIG);
-  
+  CONFIG.entities.forEach(function(entityConfig) {
+    registerHandlers(entityConfig );
+  });
+    
   // MQTT
-  if(CONFIG.mqttTopic){
-    startMqttTrigger(CONFIG.mqttTopic, CONFIG.switchId);
-  } else {
-    print('MQTT Trigger not enabled');
-  }
+  CONFIG.entities.forEach(function(entityConfig) {
+      if(entityConfig.mqttTopic){
+        startMqttTrigger(entityConfig);
+      } else {
+        print('MQTT Trigger not enabled');
+      }
+  });
     
   print("SmartLightSwitch Script: running");  
 }
