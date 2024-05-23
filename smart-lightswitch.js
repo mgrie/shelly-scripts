@@ -105,77 +105,64 @@ function toogleSwitch(switchId, delay, callback){
 /**
 * register Event Handler
 **/
-function registerHandlers(){
-  Shelly.addEventHandler(function(e) {
+function registerHandlers(config){
+  Shelly.addEventHandler(function(e, config) {
     
     // Handle Input Button
-    if (e.component === "input:" + CONFIG.inputId) {
+    if (e.component === "input:" + config.inputId) {
       switch (e.info.event) {
         case "single_push":
-          toogleSwitch(CONFIG.switchId, CONFIG.time1);
+          toogleSwitch(config.switchId, config.time1);
           break;
         case "double_push":
-          toogleSwitch(CONFIG.switchId, CONFIG.time2);
+          toogleSwitch(config.switchId, config.time2);
           break;
         case "triple_push":
-          toogleSwitch(CONFIG.switchId, CONFIG.time3);
+          toogleSwitch(config.switchId, config.time3);
           break;
         case "long_push":
-          toogleSwitch(CONFIG.switchId, CONFIG.timelong);
+          toogleSwitch(config.switchId, config.timelong);
           break;
       }
     }
   
     // External switch off dedection: reset auto off value
-    if (e.component === "switch:" + CONFIG.switchId) {
+    if (e.component === "switch:" + config.switchId) {
       // Explicit, could be undefined!
       if(e.info.state === false){
-        setAutoOffFalse(CONFIG.switchId);
+        setAutoOffFalse(config.switchId);
       }  
     }
-  });  
+  }, config);  
 }
 
 /**
 * Optional: External MQTT trigger
 **/
-function startMqttTrigger(){
-  
-  if(CONFIG.mqttTopic == null){
-    print('MQTT Trigger not enabled');
-    return;
-  }
-  
+function startMqttTrigger(mqttTopic, switchId){
+ 
   if(!MQTT.isConnected()){
     print('MQTT not connected');
     return;
   }
   
-  MQTT.subscribe(CONFIG.mqttTopic, function(topic, message, userdata) {
+  MQTT.subscribe(mqttTopic, function(topic, message, switchId) {
     var data = JSON.parse(message);
     switch(data.action){
       case "on":
-        setSwitchOn(CONFIG.switchId, data.delay);
+        setSwitchOn(config.switchId, data.delay);
         break;
       case "off":
-        setSwitchOff(CONFIG.switchId);
+        setSwitchOff(config.switchId);
         break;
       case "toogle":
-        toogleSwitch(CONFIG.switchId, data.delay);
+        toogleSwitch(config.switchId, data.delay);
         break; 
       }
-  });   
+  }, switchId);   
 }
 
-function autoConfig(){
-  if(!CONFIG.autoConfig){
-    print('autoConfig disabled');
-    return;
-  }
-
-  let switchId = CONFIG.switchId;
-  let inputId = CONFIG.inputId; 
-
+function autoConfig(switchId){
   Shelly.call("Switch.SetConfig", {"id": switchId, "config": {"in_mode": "detached", "initial_state": "off"}}, 
     function (result, error_code, error_message) {
       if (error_code !== 0) {
@@ -195,9 +182,24 @@ function autoConfig(){
 }
 
 function main(){
-  autoConfig();  
-  registerHandlers();
-  startMqttTrigger();
+
+  // AutoConfig
+  if(CONFIG.autoConfig){
+    autoConfig(CONFIG.switchId);
+  } else {
+    print('autoConfig disabled');
+  }
+  
+  // Main Handlers  
+  registerHandlers(CONFIG);
+  
+  // MQTT
+  if(CONFIG.mqttTopic){
+    startMqttTrigger(CONFIG.mqttTopic, CONFIG.switchId);
+  } else {
+    print('MQTT Trigger not enabled');
+  }
+    
   print("SmartLightSwitch Script: running");  
 }
 
