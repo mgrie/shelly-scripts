@@ -1,8 +1,10 @@
 /**
 * Smart LightSwitch for Shelly
 *
-* Autor: Marco Grießhammer (https://github.com/mgrie)
-* Date: 23.05.2024
+* Autor:   Marco Grießhammer (https://github.com/mgrie)
+* Date:    23.05.2024
+* Version: 0.5
+* Github:  https://github.com/mgrie/shelly-scripts/blob/main/smart-lightswitch.js
 *
 * Key functions:
 *  - 'Pump' (double Press, triple Press, longpress) for a longer auto off delay
