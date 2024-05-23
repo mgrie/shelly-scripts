@@ -171,6 +171,9 @@ function startMqttTrigger(config){
   }, config.switchId);   
 }
 
+/**
+* AutoConfig: Detatch Input and Output
+*/
 function autoConfig(entityConfig){
   Shelly.call("Switch.SetConfig", {"id": entityConfig.switchId, "config": {"in_mode": "detached", "initial_state": "off"}}, 
     function (result, error_code, error_message) {
@@ -190,6 +193,9 @@ function autoConfig(entityConfig){
   );  
 }
 
+/**
+* 
+*/
 function main(){
 
   // AutoConfig
@@ -201,12 +207,12 @@ function main(){
     print('autoConfig disabled');
   }
   
-  // Main Handlers  
+  // Start main handlers  
   CONFIG.entities.forEach(function(entityConfig) {
     registerHandlers(entityConfig );
   });
     
-  // MQTT
+  // Start MQTT Triggers
   CONFIG.entities.forEach(function(entityConfig) {
       if(entityConfig.mqttTopic){
         startMqttTrigger(entityConfig);
