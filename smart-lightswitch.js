@@ -177,17 +177,17 @@ function startMqttTrigger(config){
 * AutoConfig: Detatch Input and Output
 */
 function autoConfig(entityConfig){
-  Shelly.call("Switch.SetConfig", {"id": entityConfig.switchId, "config": {"in_mode": "detached", "initial_state": "off"}}, 
+  Shelly.call("Switch.SetConfig", {"id": entityConfig.switchId, "config": {"in_mode": "detached", "initial_state": "off", "input_mode": entityConfig.switchType, "auto_on": false, "auto_off": false}}, 
     function (result, error_code, error_message) {
       if (error_code !== 0) {
         print("Error setting input mode: " + error_message);
       }
       else {
-        Shelly.call("Switch.SetConfig", {"id": entityConfig.switchId, "config": {"input_mode": entityConfig.switchType}}, 
+        Shelly.call("Input.SetConfig", {"id": entityConfig.inputId, "config": {"type": entityConfig.inputType, "enable": true}}, 
           function (result, error_code, error_message) {
-                  if (error_code !== 0) {
-                    print("Error setting input mode: " + error_message);
-                  }
+            if (error_code !== 0) {
+              print("Error setting input mode: " + error_message);
+            }
           }
         );
       }
