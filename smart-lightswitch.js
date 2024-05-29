@@ -4,8 +4,8 @@
 * a Shelly-Script for a smart time switch or stairwell timer  
 *
 * Autor:   Marco Grießhammer (https://github.com/mgrie)
-* Date:    23.05.2024
-* Version: 0.5
+* Date:    29.05.2024
+* Version: 0.6
 * Github:  https://github.com/mgrie/shelly-scripts/blob/main/smart-lightswitch.js
 *
 * Key functions:
