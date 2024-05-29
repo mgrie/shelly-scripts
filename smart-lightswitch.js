@@ -107,9 +107,16 @@ function setAutoOffDelay(switchId, delay, callback){
 * setSwitchOn with optional delay time
 **/
 function setSwitchOn(switchId, delay, callback){
-	setAutoOffDelay(switchId, delay, function(ud){
+  // Performance hack
+  
+  // switch on as fast as you can
+  Shelly.call("Switch.set", {'id': switchId, 'on': true}, function(ud){
+    // call slow setAutoOffDelay
+    setAutoOffDelay(switchId, delay, function(ud){
+        // switch on again!
 		Shelly.call("Switch.set", {'id': switchId, 'on': true}, callback);
 	});
+  });
 }
 
 /**
