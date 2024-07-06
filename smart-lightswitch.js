@@ -2,7 +2,7 @@
 * Smart LightSwitch for Shelly
 *
 * Autor:   Marco Grießhammer (https://github.com/mgrie)
-* Date:    23.05.2024
+* Date:    2024-07-06
 * Version: 0.7
 * Github:  https://github.com/mgrie/shelly-scripts/blob/main/smart-lightswitch.js
 *
@@ -35,24 +35,28 @@ let CONFIG = {
       
       /**
       * Values:
-      *  - auto off delay in seconds
-      *  - 'null' for continious light
+      *  delay: auto off delay in seconds, null for continious light
+      *  action: toogle, on, off
       **/
       singlepush: {
         action: 'toogle', // values: toogle, on, off
-        delay: 2*60 // 2 minutes 
+        delay: 2*60,  // 2*60, // 2 minutes 
+        autoOffAlert: 20 // 20 seconds
       },
       doublepush: {
         action: 'toogle', // values: toogle, on, off
-        delay: 5*60 // 5 minutes
+        delay: 5*60, // 5 minutes
+        autoOffAlert: 20 // 20 seconds
       },
       triplepush: {
         action: 'toogle', // values: toogle, on, off
-        delay: 10*60 // 10 minutes
+        delay: 10*60, // 10 minutes
+        autoOffAlert: 20 // 20 seconds
       },
       longpush: {
         action: 'toogle', // values: toogle, on, off
-        delay: null // continious light
+        delay: null, // continious light
+        autoOffAlert: null, // disable
       },
       
       /**
@@ -64,6 +68,8 @@ let CONFIG = {
     }
   ]
 };
+
+let AUTO_OFF_ALERT_HANDLES = [];
 
 ////// CORE FUNCTIONS //////
 
@@ -92,12 +98,34 @@ function setAutoOffDelay(switchId, delay, callback){
 	}
 }
 
+function switchFlash(switchId, nextAutoOffDelay){      
+  // Turn off switch 
+  Shelly.call("Switch.set", {'id': switchId, 'on': false}, function(ud){
+    // Performance Hack, immidiate call
+    Shelly.call("Switch.set", {'id': switchId, 'on': true}, function(ud){    
+      // set nextAutoOffDelay
+      setAutoOffDelay(switchId, nextAutoOffDelay, function(ud){
+        // switch on again!
+        Shelly.call("Switch.set", {'id': switchId, 'on': true});
+      });  
+    });
+  });
+}
+
 /**
 * setSwitchOn with optional delay time
 **/
-function setSwitchOn(switchId, delay, callback){
+function setSwitchOn(switchId, delay, autoOffAlert, callback){
   // Performance hack, immediatly set light on
-  Shelly.call("Switch.set", {'id': switchId, 'on': true}, function(ud){  
+  Shelly.call("Switch.set", {'id': switchId, 'on': true}, function(ud){
+    // set autoOffAlert Timer
+    if(delay > autoOffAlert){
+      timeout = (delay - autoOffAlert) * 1000;
+      AUTO_OFF_ALERT_HANDLES[switchId] = Timer.set(timeout, false, function(ud){
+        switchFlash(switchId, autoOffAlert);
+      });
+    }      
+      
     // call slow setAutoOffDelay
     setAutoOffDelay(switchId, delay, function(ud){
         // switch on again!
@@ -110,6 +138,11 @@ function setSwitchOn(switchId, delay, callback){
 *' setSwitchOff
 **/
 function setSwitchOff(switchId, callback){
+    if(AUTO_OFF_ALERT_HANDLES[switchId]) {
+      Timer.clear(AUTO_OFF_ALERT_HANDLES[switchId]);
+      AUTO_OFF_ALERT_HANDLES[switchId] = null;
+    }
+    
 	Shelly.call("Switch.set", {'id': switchId, 'on': false}, callback);
 }
 
@@ -121,28 +154,19 @@ function setSwitchOff(switchId, callback){
 function switchAction(switchId, data, callback){
   switch(data.action){
     case "on":
-      setSwitchOn(switchId, data.delay);
+      setSwitchOn(switchId, data.delay, data.autoOffAlert, callback);
       break;
     case "off":
-      setSwitchOff(switchId);
+      setSwitchOff(switchId, callback);
       break;
     case "toogle":
-      toogleSwitch(switchId, data.delay);
+      if(isSwitchOn(switchId)){
+        setSwitchOff(switchId, callback);
+      } else {
+        setSwitchOn(switchId, data.delay, data.autoOffAlert, callback);
+      } 
       break; 
     }
-}
-
-/**
-* toogleSwitch
-*
-* Toogle Switch to on or off with optional auto off delay
-**/
-function toogleSwitch(switchId, delay, callback){
-  if(isSwitchOn(switchId)){
-    setSwitchOff(switchId, callback);
-  } else {
-    setSwitchOn(switchId, delay, callback);
-  }  
 }
 
 ////// HANDLERS //////
@@ -175,6 +199,10 @@ function registerHandlers(config){
     if (e.component === "switch:" + config.switchId) {
       // Explicit, could be undefined!
       if(e.info.state === false){
+        if(AUTO_OFF_ALERT_HANDLES[config.switchId]) {
+          Timer.clear(AUTO_OFF_ALERT_HANDLES[config.switchId]);
+          AUTO_OFF_ALERT_HANDLES[config.switchId] = null;
+        }
         setAutoOffFalse(config.switchId);
       }  
     }
@@ -238,7 +266,7 @@ function main(){
     // Pessimistic init
     setSwitchOff(entityConfig.switchId)
     
-    registerHandlers(entityConfig );
+    registerHandlers(entityConfig);
   });
     
   // Start MQTT Triggers
