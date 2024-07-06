@@ -65,26 +65,13 @@ let CONFIG = {
   ]
 };
 
-let CURRENT_SWITCH_STATE = [];
-
 ////// CORE FUNCTIONS //////
-
-/**
-* Init or set current switch state
-**/
-function setSwitchState(switchId, state){
-  if(state){
-  	CURRENT_SWITCH_STATE[switchId] = state;
-  } else {
-	CURRENT_SWITCH_STATE[switchId] = Shelly.getComponentStatus("switch:" + switchId).output;    
-  }
-}
 
 /**
 * Get the current switch state
 **/
 function isSwitchOn(switchId){
-	return CURRENT_SWITCH_STATE[switchId];
+	return Shelly.getComponentStatus("switch:" + switchId).output;   
 }
 
 /**
@@ -109,12 +96,8 @@ function setAutoOffDelay(switchId, delay, callback){
 * setSwitchOn with optional delay time
 **/
 function setSwitchOn(switchId, delay, callback){
-  // Performance hack
-  
-  // switch on as fast as you can
-  Shelly.call("Switch.set", {'id': switchId, 'on': true}, function(ud){
-    setSwitchState(switchId, true);
-    
+  // Performance hack, immediatly set light on
+  Shelly.call("Switch.set", {'id': switchId, 'on': true}, function(ud){  
     // call slow setAutoOffDelay
     setAutoOffDelay(switchId, delay, function(ud){
         // switch on again!
@@ -127,12 +110,7 @@ function setSwitchOn(switchId, delay, callback){
 *' setSwitchOff
 **/
 function setSwitchOff(switchId, callback){
-	Shelly.call("Switch.set", {'id': switchId, 'on': false}, function(ud){
-    	setSwitchState(switchId, false);
-    	if(callback){
-    	  callback(ud);
-    	}
-	});
+	Shelly.call("Switch.set", {'id': switchId, 'on': false}, callback);
 }
 
 ////// ABSTRACT FUNCTIONS //////
@@ -197,7 +175,6 @@ function registerHandlers(config){
     if (e.component === "switch:" + config.switchId) {
       // Explicit, could be undefined!
       if(e.info.state === false){
-        setSwitchState(config.switchId, false)
         setAutoOffFalse(config.switchId);
       }  
     }
@@ -258,7 +235,7 @@ function main(){
   
   // Start main handlers  
   CONFIG.entities.forEach(function(entityConfig) {
-    // Init current switch state, pessimistic via setSwitchOff
+    // Pessimistic init
     setSwitchOff(entityConfig.switchId)
     
     registerHandlers(entityConfig );
