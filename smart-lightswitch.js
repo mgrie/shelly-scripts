@@ -1,27 +1,17 @@
 /**
 * Smart LightSwitch for Shelly
 *
-* a Shelly-Script for a smart time switch or stairwell timer  
-*
 * Autor:   Marco Grießhammer (https://github.com/mgrie)
-* Date:    29.05.2024
+* Date:    06.07.2024
 * Version: 0.6
 * Github:  https://github.com/mgrie/shelly-scripts/blob/main/smart-lightswitch.js
 *
 * Key functions:
-*  - time switch
-*  - toogle off / cancel timer
 *  - 'Pump' (double Press, triple Press, longpress) for a longer auto off delay
 *  - configurable continious light
-*  - Timer animation and countdown in Shelly App
-*  - External triggers via MQTT
+*  - External Triggers via MQTT
 *  - AutoConfig
 *  - Multiple entities
-*
-* Installation and first start:
-*  - Try default values, if youre not sure
-*  - Known gotchas: 
-*	* wrong cabling - use 'invert input' if your shelly detects 'longpress' on 'singlepress'
 *
 * MQTT Payload:
 *  {
@@ -30,6 +20,7 @@
 *  }
 *
 **/
+
 print("SmartLightSwitch Script: startup");
 
 let CONFIG = {
@@ -42,47 +33,46 @@ let CONFIG = {
       switchId: 0,
       switchType: "button",
       
-      // Values: auto off delay in seconds || 'null' for continious light
+      /**
+      * Values:
+      *  - auto off delay in seconds
+      *  - 'null' for continious light
+      **/
       time1: 2*60, // 2 minutes
       time2: 5*60, // 5 minutes
       time3: 10*60, // 10 minutes
       timelong: null, // continious light
       
-      // Values: topic as string || 'null' for disable MQTT	    
+      /**
+      * Values:
+      *  - MQTT Topic
+      *  - null: disable external Trigger
+      **/
       mqttTopic: "shelly/mydevice/light",
     }
   ]
 };
 
+let CURRENT_SWITCH_STATE = [];
+
 ////// CORE FUNCTIONS //////
 
 /**
-* AutoConfig: Detatch Input and Output
-*/
-function autoConfig(entityConfig){
-  Shelly.call("Switch.SetConfig", {"id": entityConfig.switchId, "config": {"in_mode": "detached", "initial_state": "off", "input_mode": entityConfig.switchType, "auto_on": false, "auto_off": false}}, 
-    function (result, error_code, error_message) {
-      if (error_code !== 0) {
-        print("Error setting input mode: " + error_message);
-      }
-      else {
-        Shelly.call("Input.SetConfig", {"id": entityConfig.inputId, "config": {"type": entityConfig.inputType, "enable": true}}, 
-          function (result, error_code, error_message) {
-            if (error_code !== 0) {
-              print("Error setting input mode: " + error_message);
-            }
-          }
-        );
-      }
-    } 
-  );  
+* Init or set current switch state
+**/
+function setSwitchState(switchId, state){
+  if(state){
+  	CURRENT_SWITCH_STATE[switchId] = state;
+  } else {
+	CURRENT_SWITCH_STATE[switchId] = Shelly.getComponentStatus("switch:" + switchId).output;    
+  }
 }
 
 /**
-* Check current switch status
+* Get the current switch state
 **/
 function isSwitchOn(switchId){
-	return Shelly.getComponentStatus("switch:" + switchId).output;
+	return CURRENT_SWITCH_STATE[switchId];
 }
 
 /**
@@ -111,6 +101,8 @@ function setSwitchOn(switchId, delay, callback){
   
   // switch on as fast as you can
   Shelly.call("Switch.set", {'id': switchId, 'on': true}, function(ud){
+    setSwitchState(switchId, true);
+    
     // call slow setAutoOffDelay
     setAutoOffDelay(switchId, delay, function(ud){
         // switch on again!
@@ -123,7 +115,12 @@ function setSwitchOn(switchId, delay, callback){
 *' setSwitchOff
 **/
 function setSwitchOff(switchId, callback){
-	Shelly.call("Switch.set", {'id': switchId, 'on': false}, callback);
+	Shelly.call("Switch.set", {'id': switchId, 'on': false}, function(ud){
+    	setSwitchState(switchId, false);
+    	if(callback){
+    	  callback(ud);
+    	}
+	});
 }
 
 ////// ABSTRACT FUNCTIONS //////
@@ -171,6 +168,7 @@ function registerHandlers(config){
     if (e.component === "switch:" + config.switchId) {
       // Explicit, could be undefined!
       if(e.info.state === false){
+        setSwitchState(config.switchId, false)
         setAutoOffFalse(config.switchId);
       }  
     }
@@ -178,7 +176,7 @@ function registerHandlers(config){
 }
 
 /**
-* start optional MQTT Trigger
+* Optional: External MQTT trigger
 **/
 function startMqttTrigger(config){
  
@@ -203,8 +201,31 @@ function startMqttTrigger(config){
   }, config.switchId);   
 }
 
-////// Main Program //////
+/**
+* AutoConfig: Detatch Input and Output
+*/
+function autoConfig(entityConfig){
+  Shelly.call("Switch.SetConfig", {"id": entityConfig.switchId, "config": {"in_mode": "detached", "initial_state": "off", "input_mode": entityConfig.switchType, "auto_on": false, "auto_off": false}}, 
+    function (result, error_code, error_message) {
+      if (error_code !== 0) {
+        print("Error setting input mode: " + error_message);
+      }
+      else {
+        Shelly.call("Input.SetConfig", {"id": entityConfig.inputId, "config": {"type": entityConfig.inputType, "enable": true}}, 
+          function (result, error_code, error_message) {
+            if (error_code !== 0) {
+              print("Error setting input mode: " + error_message);
+            }
+          }
+        );
+      }
+    } 
+  );  
+}
 
+/**
+* 
+*/
 function main(){
 
   // AutoConfig
@@ -215,6 +236,11 @@ function main(){
   } else {
     print('autoConfig disabled');
   }
+  
+  // Init current switch state, pessimistic via setSwitchOff
+  CONFIG.entities.forEach(function(entityConfig) {
+    setSwitchOff(entityConfig.switchId)
+  });
   
   // Start main handlers  
   CONFIG.entities.forEach(function(entityConfig) {
