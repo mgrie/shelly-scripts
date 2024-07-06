@@ -2,8 +2,8 @@
 * Smart LightSwitch for Shelly
 *
 * Autor:   Marco Grießhammer (https://github.com/mgrie)
-* Date:    06.07.2024
-* Version: 0.6
+* Date:    23.05.2024
+* Version: 0.7
 * Github:  https://github.com/mgrie/shelly-scripts/blob/main/smart-lightswitch.js
 *
 * Key functions:
@@ -38,10 +38,22 @@ let CONFIG = {
       *  - auto off delay in seconds
       *  - 'null' for continious light
       **/
-      time1: 2*60, // 2 minutes
-      time2: 5*60, // 5 minutes
-      time3: 10*60, // 10 minutes
-      timelong: null, // continious light
+      singlepush: {
+        action: 'toogle', // values: toogle, on, off
+        delay: 2*60 // 2 minutes 
+      },
+      doublepush: {
+        action: 'toogle', // values: toogle, on, off
+        delay: 5*60 // 5 minutes
+      },
+      triplepush: {
+        action: 'toogle', // values: toogle, on, off
+        delay: 10*60 // 10 minutes
+      },
+      longpush: {
+        action: 'toogle', // values: toogle, on, off
+        delay: null // continious light
+      },
       
       /**
       * Values:
@@ -126,6 +138,23 @@ function setSwitchOff(switchId, callback){
 ////// ABSTRACT FUNCTIONS //////
 
 /**
+* switchAction
+**/
+function switchAction(switchId, data, callback){
+  switch(data.action){
+    case "on":
+      setSwitchOn(switchId, data.delay);
+      break;
+    case "off":
+      setSwitchOff(switchId);
+      break;
+    case "toogle":
+      toogleSwitch(switchId, data.delay);
+      break; 
+    }
+}
+
+/**
 * toogleSwitch
 *
 * Toogle Switch to on or off with optional auto off delay
@@ -134,7 +163,7 @@ function toogleSwitch(switchId, delay, callback){
   if(isSwitchOn(switchId)){
     setSwitchOff(switchId, callback);
   } else {
-	setSwitchOn(switchId, delay, callback);
+    setSwitchOn(switchId, delay, callback);
   }  
 }
 
@@ -150,16 +179,16 @@ function registerHandlers(config){
     if (e.component === "input:" + config.inputId) {
       switch (e.info.event) {
         case "single_push":
-          toogleSwitch(config.switchId, config.time1);
+          switchAction(config.switchId, config.singlepush);
           break;
         case "double_push":
-          toogleSwitch(config.switchId, config.time2);
+          switchAction(config.switchId, config.doublepush);
           break;
         case "triple_push":
-          toogleSwitch(config.switchId, config.time3);
+          switchAction(config.switchId, config.triplepush);
           break;
         case "long_push":
-          toogleSwitch(config.switchId, config.timelong);
+          switchAction(config.switchId, config.longpush);
           break;
       }
     }
@@ -187,17 +216,7 @@ function startMqttTrigger(config){
   
   MQTT.subscribe(config.mqttTopic, function(topic, message, switchId) {
     var data = JSON.parse(message);
-    switch(data.action){
-      case "on":
-        setSwitchOn(switchId, data.delay);
-        break;
-      case "off":
-        setSwitchOff(switchId);
-        break;
-      case "toogle":
-        toogleSwitch(switchId, data.delay);
-        break; 
-      }
+    switchAction(switchId, data);
   }, config.switchId);   
 }
 
@@ -237,13 +256,11 @@ function main(){
     print('autoConfig disabled');
   }
   
-  // Init current switch state, pessimistic via setSwitchOff
-  CONFIG.entities.forEach(function(entityConfig) {
-    setSwitchOff(entityConfig.switchId)
-  });
-  
   // Start main handlers  
   CONFIG.entities.forEach(function(entityConfig) {
+    // Init current switch state, pessimistic via setSwitchOff
+    setSwitchOff(entityConfig.switchId)
+    
     registerHandlers(entityConfig );
   });
     
