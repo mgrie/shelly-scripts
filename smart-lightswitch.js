@@ -7,16 +7,19 @@
 * Github:  https://github.com/mgrie/shelly-scripts/blob/main/smart-lightswitch.js
 *
 * Key functions:
-*  - 'Pump' (double Press, triple Press, longpress) for a longer auto off delay
+*  - 'Pump' (double Press, triple Press, longpress) for a longer auto off setup
+*  - configurable actions ('on' for classic mode / large buildings, 'toogle' for small buildings or single rooms)
 *  - configurable continious light
+*  - auto off alert (flash indicator)
 *  - External Triggers via MQTT
 *  - AutoConfig
 *  - Multiple entities
 *
-* MQTT Payload:
+* MQTT Payload, equal to button config:
 *  {
-*    action: <string>, // on || off || toogle
-*    delay: <int>      // delay in seconds or null for continious light
+*    action: <string>,   // on || off || toogle
+*    delay: <int>        // delay in seconds or null for continious light
+*    autoOffAlert: <int> // flash alert before autoOff in seconds, set null to disable
 *  }
 *
 **/
@@ -37,21 +40,22 @@ let CONFIG = {
       * Values:
       *  delay: auto off delay in seconds, null for continious light
       *  action: toogle, on, off
+      *  autoOffAlert: flash alert before autoOff in seconds, set null to disable
       **/
       singlepush: {
         action: 'toogle', // values: toogle, on, off
         delay: 2*60,  // 2*60, // 2 minutes 
-        autoOffAlert: 20 // 20 seconds
+        autoOffAlert: 15 // 20 seconds
       },
       doublepush: {
         action: 'toogle', // values: toogle, on, off
         delay: 5*60, // 5 minutes
-        autoOffAlert: 20 // 20 seconds
+        autoOffAlert: 15 // 20 seconds
       },
       triplepush: {
         action: 'toogle', // values: toogle, on, off
         delay: 10*60, // 10 minutes
-        autoOffAlert: 20 // 20 seconds
+        autoOffAlert: 15 // 20 seconds
       },
       longpush: {
         action: 'toogle', // values: toogle, on, off
@@ -98,7 +102,8 @@ function setAutoOffDelay(switchId, delay, callback){
 	}
 }
 
-function switchFlash(switchId, nextAutoOffDelay){      
+function switchFlash(switchId, nextAutoOffDelay){  
+  print("Execute switchFlash");    
   // Turn off switch 
   Shelly.call("Switch.set", {'id': switchId, 'on': false}, function(ud){
     // Performance Hack, immidiate call
