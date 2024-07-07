@@ -26,6 +26,8 @@
 
 print("SmartLightSwitch Script: startup");
 
+/********************* BEGIN CONFIGURATION *************************/
+
 let CONFIG = {
   autoConfig: true,
 	 
@@ -72,6 +74,8 @@ let CONFIG = {
     }
   ]
 };
+
+/********************* END CONFIGURATION *************************/
 
 let AUTO_OFF_ALERT_HANDLES = [];
 
