@@ -47,17 +47,17 @@ let CONFIG = {
       singlepush: {
         action: 'toogle', // values: toogle, on, off
         delay: 2*60,  // 2*60, // 2 minutes 
-        autoOffAlert: 15 // 20 seconds
+        autoOffAlert: 15 // 15 seconds
       },
       doublepush: {
         action: 'toogle', // values: toogle, on, off
         delay: 5*60, // 5 minutes
-        autoOffAlert: 15 // 20 seconds
+        autoOffAlert: 15 // 15 seconds
       },
       triplepush: {
         action: 'toogle', // values: toogle, on, off
         delay: 10*60, // 10 minutes
-        autoOffAlert: 15 // 20 seconds
+        autoOffAlert: 15 // 15 seconds
       },
       longpush: {
         action: 'toogle', // values: toogle, on, off
