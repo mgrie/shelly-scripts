@@ -2,8 +2,8 @@
 * Smart LightSwitch for Shelly
 *
 * Autor:   Marco Grießhammer (https://github.com/mgrie)
-* Date:    2024-07-06
-* Version: 0.7
+* Date:    2024-10-04
+* Version: 0.8
 * Github:  https://github.com/mgrie/shelly-scripts/blob/main/smart-lightswitch.js
 *
 * Key functions:
@@ -37,7 +37,12 @@ let CONFIG = {
       inputType: "button",
       switchId: 0,
       switchType: "button",
-      
+
+      // Default AutoOff Delay, e.g. for soft triggers via HomeAssistant or Shelly App.
+      // Hint: For AutoOffAlert feature use MQTT Trigger!
+      // null and 0 for continious light, 2*60 for 2 minutes
+      defaultAutoOffDelay: null, // 2*60,
+	    
       /**
       * Values:
       *  delay: auto off delay in seconds, null for continious light
@@ -89,20 +94,13 @@ function isSwitchOn(switchId){
 }
 
 /**
-* setAutoOffFalse
-**/
-function setAutoOffFalse(switchId, callback){
-  Shelly.call("Switch.SetConfig", {'id': switchId, 'config': {'auto_off': false}}, callback);
-}
-
-/**
 *' setAutoOffDelay with optional delay time
 **/
 function setAutoOffDelay(switchId, delay, callback){
 	if(delay > 0){
 		Shelly.call("Switch.SetConfig", {'id': switchId, 'config': {'auto_off': true, 'auto_off_delay': delay}}, callback);
 	} else {
-		setAutoOffFalse(switchId, callback);
+		Shelly.call("Switch.SetConfig", {'id': switchId, 'config': {'auto_off': false}}, callback);
 	}
 }
 
@@ -184,7 +182,11 @@ function switchAction(switchId, data, callback){
 * register Event Handler
 **/
 function registerHandlers(config){
-  Shelly.addEventHandler(function(e, config) {
+  Shelly.addEventHandler(function(e, config) {   
+    
+    // Debug helpers
+    //print("Event componnt: " + e.component);
+    //print("Event info: " + JSON.stringify(e.info));
     
     // Handle Input Button
     if (e.component === "input:" + config.inputId) {
@@ -201,19 +203,24 @@ function registerHandlers(config){
         case "long_push":
           switchAction(config.switchId, config.longpush);
           break;
-      }
+      }  
     }
-  
-    // External switch off dedection: reset auto off value
-    if (e.component === "switch:" + config.switchId) {
-      // Explicit, could be undefined!
+    
+    // External switch off dedection: reset auto off value 
+    else if (e.component === "switch:" + config.switchId) {
+      // Check state explicit, could be undefined!
+      // Switch to off: reset timers
       if(e.info.state === false){
         if(AUTO_OFF_ALERT_HANDLES[config.switchId]) {
           Timer.clear(AUTO_OFF_ALERT_HANDLES[config.switchId]);
           AUTO_OFF_ALERT_HANDLES[config.switchId] = null;
         }
-        setAutoOffFalse(config.switchId);
-      }  
+        // Set AutoOff to default
+        setAutoOffDelay(config.switchId, config.defaultAutoOffDelay);
+      } 
+      else if(e.info.state === true && !AUTO_OFF_ALERT_HANDLES[config.switchId]){
+        print("External switch on");
+      } 
     }
   }, config);  
 }
@@ -224,8 +231,8 @@ function registerHandlers(config){
 function startMqttTrigger(config){
  
   if(!MQTT.isConnected()){
-    print('MQTT not connected');
-    return;
+    // This could happen after Shelly reboot, don't panic! 
+    print('Warning: MQTT not connected');
   }
   
   MQTT.subscribe(config.mqttTopic, function(topic, message, switchId) {
@@ -249,6 +256,7 @@ function autoConfig(entityConfig){
             if (error_code !== 0) {
               print("Error setting input mode: " + error_message);
             }
+            setAutoOffDelay(entityConfig.switchId, entityConfig.defaultAutoOffDelay);
           }
         );
       }
