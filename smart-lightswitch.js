@@ -53,7 +53,7 @@ let CONFIG = {
       // Default AutoOff Delay, e.g. for soft triggers via HomeAssistant or Shelly App.
       // Hint: For AutoOffAlert feature use MQTT Trigger!
       // null and 0 for continious light, 2*60 for 2 minutes
-      defaultAutoOffDelay: null, // 2*60,
+      defaultAutoOffDelay: 2*60,
       
       /**
       * Values:
@@ -79,7 +79,7 @@ let CONFIG = {
       },
       longpush: {
         action: 'toogle', // values: toogle, on, off
-        delay: 30*60, // continious light
+        delay: null, // continious light
         autoOffAlert: null, // disable
       },
       
