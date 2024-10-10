@@ -3,7 +3,7 @@
 *
 * Autor:   Marco Grießhammer (https://github.com/mgrie)
 * Date:    2024-10-10
-* Version: 1.6
+* Version: 1.7
 * Github:  https://github.com/mgrie/shelly-scripts/blob/main/smart-lightswitch.js
 *
 * Key functions:
@@ -215,36 +215,68 @@ function switchAction(switchId, data, callback){
 /**
 * register Event Handler
 **/
-function registerHandlers(config){
-  Shelly.addEventHandler(function(e, config) {   
+function registerHandlers(){
+  Shelly.addEventHandler(function(e, entities) {   
+    if(!e) return;
     
     // Debug helpers
     //print("Event componnt: " + e.component);
     //print("Event info: " + JSON.stringify(e.info));
     //print("input:" + config.inputId + "  HasProperty " + config.events.hasOwnProperty(e.info.event));
-    
-    // Handle Input Button
-    if (e.component === "input:" + config.inputId && config.events.hasOwnProperty(e.info.event)) {
-      switchAction(config.switchId, config.events[e.info.event]);
-    }
+        
+    entities.forEach(function(config) {
+      	// Handle Input Button
+		if (e && e.component === "input:" + config.inputId && config.events.hasOwnProperty(e.info.event)) {
+		  switchAction(config.switchId, config.events[e.info.event]);
+		}
+		
+		// External switch off dedection: reset auto off value 
+		else if (e && e.component === "switch:" + config.switchId) {
+		  // Check state explicit, could be undefined!
+		  // Switch to off: reset timers
+		  if(e.info.state === false){
+		  	if(AUTO_OFF_ALERT_HANDLES[config.switchId]) {
+		      Timer.clear(AUTO_OFF_ALERT_HANDLES[config.switchId]);
+			  AUTO_OFF_ALERT_HANDLES[config.switchId] = null;
+			}
+			// Set AutoOff to default
+			setAutoOffDelay(config.switchId, config.defaultAutoOffDelay);
+		  } 
+		  //else if(e.info.state === true && !AUTO_OFF_ALERT_HANDLES[config.switchId]){
+		  //  caller detection would be nice here to activate alertFlash for software button
+		  //} 
+		} 
+    });
+  }, CONFIG.entities);  
+}
 
-    // External switch off dedection: reset auto off value 
-    else if (e.component === "switch:" + config.switchId) {
-      // Check state explicit, could be undefined!
-      // Switch to off: reset timers
-      if(e.info.state === false){
-        if(AUTO_OFF_ALERT_HANDLES[config.switchId]) {
-          Timer.clear(AUTO_OFF_ALERT_HANDLES[config.switchId]);
-          AUTO_OFF_ALERT_HANDLES[config.switchId] = null;
-        }
-        // Set AutoOff to default
-        setAutoOffDelay(config.switchId, config.defaultAutoOffDelay);
-      } 
-      //else if(e.info.state === true && !AUTO_OFF_ALERT_HANDLES[config.switchId]){
-      //  caller detection would be nice here to activate alertFlash for software button
-      //} 
-    }
-  }, config);  
+function registerMqttSubscriptions(){
+  Shelly.call("MQTT.GetConfig", {}, function(mqttConfig){
+    if(mqttConfig && mqttConfig.enable){
+      
+      if(!MQTT.isConnected()){
+        // This could happen after Shelly reboot, don't panic! 
+        print('Warning: MQTT not connected');
+      }
+
+      if(CONFIG.mqttLightTrigger){
+        MQTT.subscribe(CONFIG.mqttLightTrigger, function(topic, message) {
+          var data = JSON.parse(message);
+          switchAction(data.switchId, data);
+        });   
+      } else {
+        print('MQTT Trigger not enabled');
+      }
+  
+      if(CONFIG.mqttIlluminanceSensor){
+        MQTT.subscribe(CONFIG.mqttIlluminanceSensor, function(topic, message) {
+          CURRENT_ILLUMINANCE = message;
+        });     
+      } else {
+        print('MQTT Illuminance Sensor not enabled');
+      }       
+    }  
+  });   
 }
 
 /**
@@ -284,37 +316,9 @@ function main(){
     print('autoConfig disabled');
   }
   
-  // Start main handlers  
-  CONFIG.entities.forEach(function(entityConfig) {
-    // Pessimistic init
-    setSwitchOff(entityConfig.switchId)
-    
-    registerHandlers(entityConfig);
-  });
-    
-  // Start MQTT Triggers
-  if(!MQTT.isConnected()){
-    // This could happen after Shelly reboot, don't panic! 
-    print('Warning: MQTT not connected');
-  }
-  
-  if(CONFIG.mqttLightTrigger){
-    MQTT.subscribe(config.mqttLightTrigger, function(topic, message) {
-      var data = JSON.parse(message);
-      switchAction(data.switchId, data);
-    });   
-  } else {
-    print('MQTT Trigger not enabled');
-  }
-  
-  if(CONFIG.mqttIlluminanceSensor){
-    MQTT.subscribe(CONFIG.mqttIlluminanceSensor, function(topic, message) {
-      CURRENT_ILLUMINANCE = message;
-    });     
-  } else {
-    print('MQTT Illuminance Sensor not enabled');
-  }    
-    
+  registerHandlers(); 
+  registerMqttSubscriptions();
+   
   print("SmartLightSwitch Script: running");  
 }
 
