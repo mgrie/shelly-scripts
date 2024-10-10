@@ -3,7 +3,7 @@
 *
 * Autor:   Marco Grießhammer (https://github.com/mgrie)
 * Date:    2024-10-10
-* Version: 1.5
+* Version: 1.6
 * Github:  https://github.com/mgrie/shelly-scripts/blob/main/smart-lightswitch.js
 *
 * Key functions:
@@ -63,41 +63,47 @@ let CONFIG = {
       defaultAutoOffDelay: 2*60,
       
       /**
-      * Values:
-      *  delay: auto off delay in seconds, null for continious light
-      *  action: toogle, on, off
-      *  autoOffAlert: flash alert before autoOff in seconds, set null to disable
-      *  illuminanceBehavior: optional
+      * shelly event configurations
+      * use "toogle" for switches or "single_push", "double_push", "triple_push", "long_push" for buttons.
       **/
-      single_push: {
-        action: 'toogle', // values: toogle, on, off
-        delay: 2*60,  // 2*60 = 2 minutes 
-        autoOffAlert: 15, // 20 seconds
-        illuminanceBehavior: {
-          action: 'off', // values: toogle, on, off
-          delay: null,  // 2*60 = 2 minutes 
-          autoOffAlert: null, // 20 seconds
-        }
-      },
-      double_push: {
-        action: 'toogle', // values: toogle, on, off
-        delay: 5*60, // 5 minutes
-        autoOffAlert: 15, // 20 seconds
-        illuminanceBehavior: {
-          action: 'toogle', // values: toogle, on, off
-          delay: 2*60,  // 2*60 = 2 minutes 
-          autoOffAlert: 15, // 20 seconds
-        }        
-      },
-      triple_push: {
-        action: 'toogle', // values: toogle, on, off
-        delay: 10*60, // 10 minutes
-        autoOffAlert: 15 // 20 seconds
-      },
-      long_push: {
-        action: 'toogle', // values: toogle, on, off
-        delay: null, // continious light
-        autoOffAlert: null, // disable
+      events: {
+          /**
+          * Values:
+          *  delay: auto off delay in seconds, null for continious light
+          *  action: toogle, on, off
+          *  autoOffAlert: flash alert before autoOff in seconds, set null to disable
+          *  illuminanceBehavior: optional
+          **/
+          single_push: {
+            action: 'toogle', // values: toogle, on, off
+            delay: 2*60,  // 2*60 = 2 minutes 
+            autoOffAlert: 15, // 20 seconds
+            illuminanceBehavior: {
+              action: 'off', // values: toogle, on, off
+              delay: null,  // 2*60 = 2 minutes 
+              autoOffAlert: null, // 20 seconds
+            }
+          },
+          double_push: {
+            action: 'toogle', // values: toogle, on, off
+            delay: 5*60, // 5 minutes
+            autoOffAlert: 15, // 20 seconds
+            illuminanceBehavior: {
+              action: 'toogle', // values: toogle, on, off
+              delay: 2*60,  // 2*60 = 2 minutes 
+              autoOffAlert: 15, // 20 seconds
+          }        
+          },
+          triple_push: {
+            action: 'toogle', // values: toogle, on, off
+            delay: 10*60, // 10 minutes
+            autoOffAlert: 15 // 20 seconds
+          },
+          long_push: {
+            action: 'toogle', // values: toogle, on, off
+            delay: null, // continious light
+            autoOffAlert: null, // disable
+          }  
       }
     }
   ]
@@ -218,7 +224,7 @@ function registerHandlers(config){
     
     // Handle Input Button
     if (e.component === "input:" + config.inputId && config.hasOwnProperty(e.info.event)) {
-      switchAction(config.switchId, config[e.info.event]);
+      switchAction(config.switchId, config.events[e.info.event]);
     }
 
     // External switch off dedection: reset auto off value 
@@ -306,8 +312,7 @@ function main(){
     });     
   } else {
     print('MQTT Illuminance Sensor not enabled');
-  }      
-    
+  }    
     
   print("SmartLightSwitch Script: running");  
 }
