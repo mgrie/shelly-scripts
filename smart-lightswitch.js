@@ -154,7 +154,7 @@ function setSwitchOn(switchId, delay, autoOffAlert, callback){
   // Performance hack, immediatly set light on
   Shelly.call("Switch.set", {'id': switchId, 'on': true}, function(ud){
     // set autoOffAlert Timer
-    if(delay > autoOffAlert){
+    if(autoOffAlert && (delay > autoOffAlert)){
       timeout = (delay - autoOffAlert) * 1000;
       AUTO_OFF_ALERT_HANDLES[switchId] = Timer.set(timeout, false, function(ud){
         switchFlash(switchId, autoOffAlert);
