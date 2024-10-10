@@ -2,8 +2,8 @@
 * Smart LightSwitch for Shelly
 *
 * Autor:   Marco Grießhammer (https://github.com/mgrie)
-* Date:    2024-10-09
-* Version: 0.9
+* Date:    2024-10-10
+* Version: 1.1
 * Github:  https://github.com/mgrie/shelly-scripts/blob/main/smart-lightswitch.js
 *
 * Key functions:
@@ -14,14 +14,14 @@
 *  - External Triggers via MQTT
 *  - AutoConfig
 *  - Multiple entities
-*  - block switch on at high illuminance
+*  - illuminance behavior
 *
 * MQTT Payload, equal to button config:
 *  {
 *    action: <string>,   // on || off || toogle
 *    delay: <int>        // delay in seconds or null for continious light
 *    autoOffAlert: <int> // flash alert before autoOff in seconds, set null to disable
-*    illuminanceBehavior: <boolean> // true: activate illuminanceBehavior, otherwise disabled
+*    illuminanceBehavior: {action, delay, autoOffAlert} // optional
 *  }
 *
 **/
@@ -41,7 +41,7 @@ let CONFIG = {
   /**
   * maximum illuminance value for illuminanceBehavior
   **/
-  maxIlluminanceValue: 2000,
+  maxIlluminanceValue: 500,
 	 
   entities: [
     {
@@ -60,17 +60,27 @@ let CONFIG = {
       *  delay: auto off delay in seconds, null for continious light
       *  action: toogle, on, off
       *  autoOffAlert: flash alert before autoOff in seconds, set null to disable
+      *  illuminanceBehavior: optional
       **/
       singlepush: {
         action: 'toogle', // values: toogle, on, off
         delay: 2*60,  // 2*60 = 2 minutes 
         autoOffAlert: 15, // 20 seconds
-        illuminanceBehavior: true
+        illuminanceBehavior: {
+          action: 'off', // values: toogle, on, off
+          delay: null,  // 2*60 = 2 minutes 
+          autoOffAlert: null, // 20 seconds
+        }
       },
       doublepush: {
         action: 'toogle', // values: toogle, on, off
         delay: 5*60, // 5 minutes
-        autoOffAlert: 15 // 20 seconds
+        autoOffAlert: 15, // 20 seconds
+        illuminanceBehavior: {
+          action: 'toogle', // values: toogle, on, off
+          delay: 2*60,  // 2*60 = 2 minutes 
+          autoOffAlert: 15, // 20 seconds
+        }        
       },
       triplepush: {
         action: 'toogle', // values: toogle, on, off
@@ -134,11 +144,7 @@ function switchFlash(switchId, nextAutoOffDelay){
 /**
 * setSwitchOn with optional delay time
 **/
-function setSwitchOn(switchId, delay, autoOffAlert, illuminanceBehavior, callback){  
-  if(illuminanceBehavior && (CURRENT_ILLUMINANCE > CONFIG.maxIlluminanceValue)){
-    return;
-  }
-  
+function setSwitchOn(switchId, delay, autoOffAlert, callback){  
   // Performance hack, immediatly set light on
   Shelly.call("Switch.set", {'id': switchId, 'on': true}, function(ud){
     // set autoOffAlert Timer
@@ -175,9 +181,15 @@ function setSwitchOff(switchId, callback){
 * switchAction
 **/
 function switchAction(switchId, data, callback){
+  
+  if(data.illuminanceBehavior && (CURRENT_ILLUMINANCE > CONFIG.maxIlluminanceValue)){
+    // change data to behavior
+    data = data.illuminanceBehavior
+  }  
+  
   switch(data.action){
     case "on":
-      setSwitchOn(switchId, data.delay, data.autoOffAlert, data.illuminanceBehavior, callback);
+      setSwitchOn(switchId, data.delay, data.autoOffAlert, callback);
       break;
     case "off":
       setSwitchOff(switchId, callback);
@@ -186,7 +198,7 @@ function switchAction(switchId, data, callback){
       if(isSwitchOn(switchId)){
         setSwitchOff(switchId, callback);
       } else {
-        setSwitchOn(switchId, data.delay, data.autoOffAlert, data.illuminanceBehavior, callback);
+        setSwitchOn(switchId, data.delay, data.autoOffAlert, callback);
       } 
       break; 
     }
