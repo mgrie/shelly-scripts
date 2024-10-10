@@ -246,9 +246,6 @@ function registerHandlers(config){
         // Set AutoOff to default
         setAutoOffDelay(config.switchId, config.defaultAutoOffDelay);
       } 
-      else if(e.info.state === true && !AUTO_OFF_ALERT_HANDLES[config.switchId]){
-        print("External switch on");
-      } 
     }
   }, config);  
 }
@@ -325,7 +322,6 @@ function main(){
   if(CONFIG.mqttIlluminanceSensor){
     MQTT.subscribe(CONFIG.mqttIlluminanceSensor, function(topic, message) {
       CURRENT_ILLUMINANCE = message;
-      print(CURRENT_ILLUMINANCE);
     });     
   }      
     
