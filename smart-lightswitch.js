@@ -3,7 +3,7 @@
 *
 * Autor:   Marco Grießhammer (https://github.com/mgrie)
 * Date:    2024-10-10
-* Version: 1.3
+* Version: 1.4
 * Github:  https://github.com/mgrie/shelly-scripts/blob/main/smart-lightswitch.js
 *
 * Key functions:
@@ -36,7 +36,7 @@ let CONFIG = {
   *  - MQTT topic for external sensor
   *  - null: disable external sensor
   **/
-  mqttIlluminanceSensor: "shelly/illuminance",
+  mqttIlluminanceSensor: null,
 
   /**
   * maximum illuminance value for illuminanceBehavior
@@ -98,7 +98,7 @@ let CONFIG = {
       *  - MQTT topic
       *  - null: disable external trigger
       **/
-      mqttLightTrigger: "shelly/mydevice/light"
+      mqttLightTrigger: null
     }
   ]
 };
@@ -307,13 +307,16 @@ function main(){
       } else {
         print('MQTT Trigger not enabled');
       }
-  });
+  });  
   
   if(CONFIG.mqttIlluminanceSensor){
     MQTT.subscribe(CONFIG.mqttIlluminanceSensor, function(topic, message) {
       CURRENT_ILLUMINANCE = message;
     });     
+  } else {
+    print('MQTT Illuminance Sensor not enabled');
   }      
+    
     
   print("SmartLightSwitch Script: running");  
 }
