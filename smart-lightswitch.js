@@ -3,7 +3,7 @@
 *
 * Autor:   Marco Grießhammer (https://github.com/mgrie)
 * Date:    2024-10-10
-* Version: 1.1
+* Version: 1.3
 * Github:  https://github.com/mgrie/shelly-scripts/blob/main/smart-lightswitch.js
 *
 * Key functions:
@@ -41,7 +41,7 @@ let CONFIG = {
   /**
   * maximum illuminance value for illuminanceBehavior
   **/
-  maxIlluminanceValue: 500,
+  maxIlluminanceValue: 350,
 	 
   entities: [
     {
@@ -62,7 +62,7 @@ let CONFIG = {
       *  autoOffAlert: flash alert before autoOff in seconds, set null to disable
       *  illuminanceBehavior: optional
       **/
-      singlepush: {
+      single_push: {
         action: 'toogle', // values: toogle, on, off
         delay: 2*60,  // 2*60 = 2 minutes 
         autoOffAlert: 15, // 20 seconds
@@ -72,7 +72,7 @@ let CONFIG = {
           autoOffAlert: null, // 20 seconds
         }
       },
-      doublepush: {
+      double_push: {
         action: 'toogle', // values: toogle, on, off
         delay: 5*60, // 5 minutes
         autoOffAlert: 15, // 20 seconds
@@ -82,12 +82,12 @@ let CONFIG = {
           autoOffAlert: 15, // 20 seconds
         }        
       },
-      triplepush: {
+      triple_push: {
         action: 'toogle', // values: toogle, on, off
         delay: 10*60, // 10 minutes
         autoOffAlert: 15 // 20 seconds
       },
-      longpush: {
+      long_push: {
         action: 'toogle', // values: toogle, on, off
         delay: null, // continious light
         autoOffAlert: null, // disable
@@ -217,23 +217,10 @@ function registerHandlers(config){
     //print("Event info: " + JSON.stringify(e.info));
     
     // Handle Input Button
-    if (e.component === "input:" + config.inputId) {
-      switch (e.info.event) {
-        case "single_push":
-          switchAction(config.switchId, config.singlepush);
-          break;
-        case "double_push":
-          switchAction(config.switchId, config.doublepush);
-          break;
-        case "triple_push":
-          switchAction(config.switchId, config.triplepush);
-          break;
-        case "long_push":
-          switchAction(config.switchId, config.longpush);
-          break;
-      }  
+    if (e.component === "input:" + config.inputId && config.hasOwnProperty(e.info.event)) {
+      switchAction(config.switchId, config[e.info.event]);
     }
-    
+
     // External switch off dedection: reset auto off value 
     else if (e.component === "switch:" + config.switchId) {
       // Check state explicit, could be undefined!
@@ -246,6 +233,9 @@ function registerHandlers(config){
         // Set AutoOff to default
         setAutoOffDelay(config.switchId, config.defaultAutoOffDelay);
       } 
+      //else if(e.info.state === true && !AUTO_OFF_ALERT_HANDLES[config.switchId]){
+      //  caller detection would be nice here to activate alertFlash for software button
+      //} 
     }
   }, config);  
 }
