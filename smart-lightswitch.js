@@ -91,8 +91,7 @@ let CONFIG = {
             illuminanceBehavior: {
               action: 'toogle', // values: toogle, on, off
               delay: 2*60,  // 2*60 = 2 minutes 
-              autoOffAlert: 15, // 20 seconds
-          }        
+              autoOffAlert: 15, // 20 seconds 
           },
           triple_push: {
             action: 'toogle', // values: toogle, on, off
