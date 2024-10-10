@@ -221,9 +221,10 @@ function registerHandlers(config){
     // Debug helpers
     //print("Event componnt: " + e.component);
     //print("Event info: " + JSON.stringify(e.info));
+    //print("input:" + config.inputId + "  HasProperty " + config.events.hasOwnProperty(e.info.event));
     
     // Handle Input Button
-    if (e.component === "input:" + config.inputId && config.hasOwnProperty(e.info.event)) {
+    if (e.component === "input:" + config.inputId && config.events.hasOwnProperty(e.info.event)) {
       switchAction(config.switchId, config.events[e.info.event]);
     }
 
