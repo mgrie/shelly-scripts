@@ -3,7 +3,7 @@
 *
 * Autor:   Marco Grießhammer (https://github.com/mgrie)
 * Date:    2024-10-10
-* Version: 1.4
+* Version: 1.5
 * Github:  https://github.com/mgrie/shelly-scripts/blob/main/smart-lightswitch.js
 *
 * Key functions:
@@ -37,6 +37,13 @@ let CONFIG = {
   *  - null: disable external sensor
   **/
   mqttIlluminanceSensor: null,
+
+  /**
+  * Values:
+  *  - MQTT topic for external trigger
+  *  - null: disable external trigger
+  **/
+  mqttLightTrigger: null,
 
   /**
   * maximum illuminance value for illuminanceBehavior
@@ -91,14 +98,7 @@ let CONFIG = {
         action: 'toogle', // values: toogle, on, off
         delay: null, // continious light
         autoOffAlert: null, // disable
-      },
-      
-      /**
-      * Values:
-      *  - MQTT topic
-      *  - null: disable external trigger
-      **/
-      mqttLightTrigger: null
+      }
     }
   ]
 };
@@ -241,16 +241,6 @@ function registerHandlers(config){
 }
 
 /**
-* Optional: External MQTT trigger
-**/
-function startMqttTrigger(config){ 
-  MQTT.subscribe(config.mqttLightTrigger, function(topic, message, switchId) {
-    var data = JSON.parse(message);
-    switchAction(switchId, data);
-  }, config.switchId);   
-}
-
-/**
 * AutoConfig: Detatch Input and Output
 */
 function autoConfig(entityConfig){
@@ -301,13 +291,14 @@ function main(){
     print('Warning: MQTT not connected');
   }
   
-  CONFIG.entities.forEach(function(entityConfig) {
-      if(entityConfig.mqttLightTrigger){
-        startMqttTrigger(entityConfig);
-      } else {
-        print('MQTT Trigger not enabled');
-      }
-  });  
+  if(CONFIG.mqttLightTrigger){
+    MQTT.subscribe(config.mqttLightTrigger, function(topic, message) {
+      var data = JSON.parse(message);
+      switchAction(data.switchId, data);
+    });   
+  } else {
+    print('MQTT Trigger not enabled');
+  }
   
   if(CONFIG.mqttIlluminanceSensor){
     MQTT.subscribe(CONFIG.mqttIlluminanceSensor, function(topic, message) {
