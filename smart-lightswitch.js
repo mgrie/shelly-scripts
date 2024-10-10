@@ -92,6 +92,7 @@ let CONFIG = {
               action: 'toogle', // values: toogle, on, off
               delay: 2*60,  // 2*60 = 2 minutes 
               autoOffAlert: 15, // 20 seconds 
+            }  
           },
           triple_push: {
             action: 'toogle', // values: toogle, on, off
@@ -102,7 +103,8 @@ let CONFIG = {
             action: 'toogle', // values: toogle, on, off
             delay: null, // continious light
             autoOffAlert: null, // disable
-          }  
+          }
+          
       }
     }
   ]
