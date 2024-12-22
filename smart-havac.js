@@ -1,6 +1,6 @@
 /// <reference path="../../shelly-script.d.ts" />
 
-print("Bootstrap");
+print("Starting Smart Havac");
 
 let CONFIG = {
   mqttTopicPrefix: 'shellypro4pm-fbh',
@@ -35,7 +35,7 @@ function havacLoop(entity){
   
   let nextValveState = isHeatingRequired(targetTemp, currentTemp, entity.hysteresis, currentValveState );
   if(currentValveState !== nextValveState ) {
-     print('Neuer Ventilstatus: ' + nextValveState);
+     print('New valve state: ' + nextValveState);
      Shelly.call("Switch.set", {'id': entity.valveId, 'on': nextValveState});
   }   
   
@@ -85,23 +85,39 @@ function registerStatusHandler(entites){
   }, componentMap);
 };
 
+function subscribeMqtt(entities){
+  MQTT.subscribe(CONFIG.mqttTopicPrefix + 'havac/set/#', function(topic, message, entities){
+    const valveId = topic.charAt(topic.length - 1);
+    const data = JSON.parse(message);
 
-/*
-function subscribeMqtt(entites){
-  MQTT.subscribe(CONFIG.mqttTopicPrefix + 'havac/set/#', function(topic, message){
-    //var data = JSON.parse(message);
-    targetTempHandler.setValue(message);
-  });
+    if(!valveId) return;
+    if(!data) return;
+
+    let entity = null;
+
+    for (let i = 0; i < entities.length; i++) {
+      if (entities[i].valveId === valveId) {
+        entity = entities[i];
+        break;
+      }
+    }
+    
+    if(!entity) return;
+    if(data.targetTemp){
+      entity.targetTempHandler.setValue(data.targetTemp);
+    }
+  }, entities);
 };
-*/
+
 
 function main() {
   // load Entities
   let entities = initEntities(ENTITIES);
+  
   registerStatusHandler(entities);
-  // subscribeMqtt(entities);
+  subscribeMqtt(entities);
 
-  print('Anwendung gestartet');
+  print('smart havac startet');
 
 }
 
