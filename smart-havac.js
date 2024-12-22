@@ -13,7 +13,25 @@ let ENTITIES = [
     hysteresis: 0.2,
     currentTempId: 'number:200',
     targetTempId: 'number:201'
-  }
+  },
+  {
+    valveId: 1,
+    hysteresis: 0.2,
+    currentTempId: 'number:202',
+    targetTempId: 'number:203'
+  },
+  {
+    valveId: 2,
+    hysteresis: 0.2,
+    currentTempId: 'number:204',
+    targetTempId: 'number:205'
+  },
+  {
+    valveId: 3,
+    hysteresis: 0.2,
+    currentTempId: 'number:206',
+    targetTempId: 'number:207'
+  }  
 ]
 
 
@@ -86,24 +104,34 @@ function registerStatusHandler(entites){
 };
 
 function subscribeMqtt(entities){
-  MQTT.subscribe(CONFIG.mqttTopicPrefix + 'havac/set/#', function(topic, message, entities){
-    const valveId = topic.charAt(topic.length - 1);
+  MQTT.subscribe(CONFIG.mqttTopicPrefix + '/havac/set/#', function(topic, message, entities){
+    print(message);
+
+    const valveId =  parseInt(topic.charAt(topic.length - 1));
     const data = JSON.parse(message);
+
+    /*
+    print(valveId);
 
     if(!valveId) return;
     if(!data) return;
+    */
 
     let entity = null;
 
     for (let i = 0; i < entities.length; i++) {
+      print(JSON.stringify(entities[i]));
       if (entities[i].valveId === valveId) {
         entity = entities[i];
         break;
       }
     }
     
+    print(JSON.stringify(entity));
+
     if(!entity) return;
     if(data.targetTemp){
+      print('set target temp to ' + data.targetTemp);
       entity.targetTempHandler.setValue(data.targetTemp);
     }
   }, entities);
