@@ -1,15 +1,5 @@
 /// <reference path="../../shelly-script.d.ts" />
 
-function log(message){
-  print(message);
-  MQTT.publish(CONFIG.mqttTopicPrefix + '/log', message);
-}
-
-let CONFIG = {
-  mqttTopicPrefix: 'shellypro4pm-fbh',
-  mqttClientId: 'shellypro4pm-fbh'
-};
-
 let ENTITIES = [
   {
     valveId: 0,
@@ -35,8 +25,55 @@ let ENTITIES = [
     currentTempId: 'number:206',
     targetTempId: 'number:207'
   }  
-]
+];
 
+let DYNCONFIG = {
+  mqttTopicPrefix: undefined,
+  mqttClientId: undefined
+};
+
+function log(message){
+  try {
+      if(typeof message === 'object' ){
+          message = JSON.stringify(message);
+      } else if (typeof message !== 'string'){
+          message = message.toString();
+      }
+   
+      print(message);
+
+      // Shelly.emitEvent("log", message);
+      
+      if(MQTT.isConnected()) {
+          MQTT.publish(DYNCONFIG.mqttTopicPrefix + "/log", message);
+      }
+  } catch (error) {
+      print("Error: " + JSON.stringify(error));
+  }
+}
+
+function waitForMqtt(callback){
+  if(MQTT.isConnected){
+    callback();
+  } else {
+    let timerHandle = Timer.set(2000, true, function(){
+      if(MQTT.isConnected){
+        Timer.clear(timerHandle);
+        callback();
+      }
+    });
+  }
+}
+
+function init(callback){
+  Shelly.call('MQTT.GetConfig', {}, function(result, error_code, error_message, userdata){
+    if(error_code === 0 && result){
+      DYNCONFIG.mqttTopicPrefix = result.topic_prefix;
+      DYNCONFIG.mqttClientId = result.client_id;
+    }
+    waitForMqtt(callback);
+  });
+}
 
 function isHeatingRequired(targetTemp, currentTemp, hysteresis, isHeating) {
   // If we're currently heating, continue heating until we reach the target temperature
@@ -56,14 +93,12 @@ function havacLoop(entity){
   
   let nextValveState = isHeatingRequired(targetTemp, currentTemp, entity.hysteresis, currentValveState );
   if(currentValveState !== nextValveState ) {
-     print('New valve state: ' + nextValveState);
+     log('New valve state: ' + nextValveState);
      Shelly.call("Switch.set", {'id': entity.valveId, 'on': nextValveState});
   }   
   
   sendStatusMessage(entity.valveId, targetTemp, currentTemp, nextValveState);
 }
-
-
 
 function sendStatusMessage(valveId, targetTemp, currentTemp, valveState) {
   var message = {
@@ -77,7 +112,6 @@ function sendStatusMessage(valveId, targetTemp, currentTemp, valveState) {
   MQTT.publish(CONFIG.mqttTopicPrefix +  '/havac/status/'  + valveId, JSON.stringify(message) );
 }
 
-
 function initEntities(entities) {
   for (const entity of entities) {
     entity.currentTempHandler = Virtual.getHandle(entity.currentTempId);
@@ -86,7 +120,6 @@ function initEntities(entities) {
 
   return entities;
 }
-
 
 function registerStatusHandler(entites){
   const componentMap = {};
@@ -108,7 +141,7 @@ function registerStatusHandler(entites){
 
 function subscribeMqtt(entities){
   MQTT.subscribe(CONFIG.mqttTopicPrefix + '/havac/set/#', function(topic, message, entities){
-    print(message);
+    log(message);
 
     const valveId =  parseInt(topic.charAt(topic.length - 1));
     const data = JSON.parse(message);
@@ -141,7 +174,6 @@ function subscribeMqtt(entities){
   }, entities);
 };
 
-
 function main() {
   log("starting smart HAVAC");
 
@@ -155,4 +187,4 @@ function main() {
 
 }
 
-main();
+init(main);
