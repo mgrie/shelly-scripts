@@ -49,7 +49,9 @@ function init(callback){
     }
     waitForMqtt(function(){
       // wait another second
-      Timer.set(1000, false, callback);
+      Timer.set(1000, false, function(){
+        callback();
+      });
     });
   });
 }
