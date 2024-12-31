@@ -1,6 +1,9 @@
 /// <reference path="../../shelly-script.d.ts" />
 
-print("Starting Smart Havac");
+function log(message){
+  print(message);
+  MQTT.publish(CONFIG.mqttTopicPrefix + '/log', message);
+}
 
 let CONFIG = {
   mqttTopicPrefix: 'shellypro4pm-fbh',
@@ -111,7 +114,8 @@ function subscribeMqtt(entities){
     const data = JSON.parse(message);
 
     /*
-    print(valveId);
+
+    ToDo: Error handling
 
     if(!valveId) return;
     if(!data) return;
@@ -120,18 +124,18 @@ function subscribeMqtt(entities){
     let entity = null;
 
     for (let i = 0; i < entities.length; i++) {
-      print(JSON.stringify(entities[i]));
+      log(JSON.stringify(entities[i]));
       if (entities[i].valveId === valveId) {
         entity = entities[i];
         break;
       }
     }
     
-    print(JSON.stringify(entity));
+    log(JSON.stringify(entity));
 
     if(!entity) return;
     if(data.targetTemp){
-      print('set target temp to ' + data.targetTemp);
+      log('set target temp to ' + data.targetTemp);
       entity.targetTempHandler.setValue(data.targetTemp);
     }
   }, entities);
@@ -139,13 +143,15 @@ function subscribeMqtt(entities){
 
 
 function main() {
+  log("starting smart HAVAC");
+
   // load Entities
   let entities = initEntities(ENTITIES);
   
   registerStatusHandler(entities);
   subscribeMqtt(entities);
 
-  print('smart havac startet');
+  log('smart havac startet');
 
 }
 
