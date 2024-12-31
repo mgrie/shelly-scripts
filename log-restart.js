@@ -4,6 +4,8 @@ let DYNCONFIG = {
   mqttTopicPrefix: undefined,
   mqttClientId: undefined
 };
+let TIMER_HANDLE_INIT = undefined;
+let TESTCOUNT = 0;
 
 function log(message){
   try {
@@ -27,11 +29,12 @@ function log(message){
 
 function waitForMqtt(callback){
   if(MQTT.isConnected){
-    callback();
+     callback();
   } else {
-    let timerHandle = Timer.set(2000, true, function(){
+    TIMER_HANDLE_INIT = Timer.set(2000, true, function(){    
       if(MQTT.isConnected){
-        Timer.clear(timerHandle);
+        if(TIMER_HANDLE_INIT) Timer.clear(TIMER_HANDLE_INIT);
+        log('MQTT Ready');
         callback();
       }
     });
@@ -44,7 +47,10 @@ function init(callback){
       DYNCONFIG.mqttTopicPrefix = result.topic_prefix;
       DYNCONFIG.mqttClientId = result.client_id;
     }
-    waitForMqtt(callback);
+    waitForMqtt(function(){
+      // wait another second
+      Timer.set(1000, false, callback);
+    });
   });
 }
 
