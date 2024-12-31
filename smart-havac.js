@@ -105,11 +105,11 @@ function sendStatusMessage(valveId, targetTemp, currentTemp, valveState) {
     target_T: targetTemp,
     current_T: currentTemp,
     action: valveState ? 'heating' : 'off',
-    clientId: CONFIG.mqttClientId,
+    clientId: DYNCONFIG.mqttClientId,
     valveId: valveId
   };
   
-  MQTT.publish(CONFIG.mqttTopicPrefix +  '/havac/status/'  + valveId, JSON.stringify(message) );
+  MQTT.publish(DYNCONFIG.mqttTopicPrefix +  '/havac/status/'  + valveId, JSON.stringify(message) );
 }
 
 function initEntities(entities) {
@@ -140,7 +140,7 @@ function registerStatusHandler(entites){
 };
 
 function subscribeMqtt(entities){
-  MQTT.subscribe(CONFIG.mqttTopicPrefix + '/havac/set/#', function(topic, message, entities){
+  MQTT.subscribe(DYNCONFIG.mqttTopicPrefix + '/havac/set/#', function(topic, message, entities){
     log(message);
 
     const valveId =  parseInt(topic.charAt(topic.length - 1));
