@@ -1,12 +1,57 @@
 /// <reference path="../../shelly-script.d.ts" />
 
-function log(message){
-  print(message);
-  MQTT.publish('shellyblugwg3-lehrerzimmer/log', message);
-}
- 
-log('Start script');
+let ENV = {
+  mqttTopicPrefix: undefined,
+  mqttClientId: undefined
+};
 
+function log(message){
+  try {
+      if(typeof message === 'object' ){
+          message = JSON.stringify(message);
+      } else if (typeof message !== 'string'){
+          message = message.toString();
+      }
+   
+      print(message);
+
+      // Shelly.emitEvent("log", message);
+      
+      if(MQTT.isConnected()) {
+          MQTT.publish(ENV.mqttTopicPrefix + "/log", message);
+      }
+  } catch (error) {
+      print("Error: " + JSON.stringify(error));
+  }
+}
+
+function waitForMqtt(callback){
+  if(MQTT.isConnected){
+    callback();
+  } else {
+    let timerHandle = Timer.set(2000, true, function(){
+      if(MQTT.isConnected){
+        Timer.clear(timerHandle);
+        callback();
+      }
+    });
+  }
+}
+
+function init(callback){
+  Shelly.call('MQTT.GetConfig', {}, function(result, error_code, error_message, userdata){
+    if(error_code === 0 && result){
+      ENV.mqttTopicPrefix = result.topic_prefix;
+      ENV.mqttClientId = result.client_id;
+    }
+    waitForMqtt(function(){
+      // wait another second
+      Timer.set(1000, false, function(){
+        callback();
+      });
+    });
+  });
+}
 
 let entities = {
   'bthomesensor:225' : {
@@ -38,28 +83,31 @@ function setNewTargetTemparature(masterId, target_C){
   }
 }
 
-
-Shelly.addStatusHandler(function(event, ud){
-  if(!event) return;
+function main(){
+  Shelly.addEventHandler(function(event, ud){
+    if(!event) return;
+    
+    let entity = entities[event.component];
   
-  let entity = entities[event.component];
-
-  if(entity){
-    if(event.delta && event.delta.value) {
-      log('Status ' + entity.name + ' target temp: ' + event.delta.value);
-
-      setNewTargetTemparature(event.component, event.delta.value);
+    if(entity){
+      log('Event ' + entity.name + ': ' + JSON.stringify(event));
     }
-  }
-});
+  });
 
-
-Shelly.addEventHandler(function(event, ud){
-  if(!event) return;
+  Shelly.addStatusHandler(function(event, ud){
+    if(!event) return;
+    
+    let entity = entities[event.component];
   
-  let entity = entities[event.component];
+    if(entity){
+      if(event.delta && event.delta.value) {
+        log('Status ' + entity.name + ' target temp: ' + event.delta.value);
+  
+        setNewTargetTemparature(event.component, event.delta.value);
+      }
+    }
+  });  
+}
 
-  if(entity){
-    log('Event ' + entity.name + ': ' + JSON.stringify(event));
-  }
-});
+
+init(main);
