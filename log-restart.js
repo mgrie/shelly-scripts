@@ -57,10 +57,11 @@ function main(){
   Shelly.call('Sys.GetStatus', {}, function(result, error_code, error_message){
     if(error_code === 0 && result){
       if(result.uptime < 300){
-        log({message: 'Device restart detected', uptime: result.uptime});
+        result.message = 'Device restart detected';
       } else {
-        log({message: 'Script restarted', uptime: result.uptime});
+        result.message = 'Script restarted';
       }
+      log(result);
     } else {
       log({error: error_code, message: error_message});
     }
