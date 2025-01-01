@@ -27,7 +27,7 @@ let ENTITIES = [
   }  
 ];
 
-let DYNCONFIG = {
+let ENV = {
   mqttTopicPrefix: undefined,
   mqttClientId: undefined
 };
@@ -45,7 +45,7 @@ function log(message){
       // Shelly.emitEvent("log", message);
       
       if(MQTT.isConnected()) {
-          MQTT.publish(DYNCONFIG.mqttTopicPrefix + "/log", message);
+          MQTT.publish(ENV.mqttTopicPrefix + "/log", message);
       }
   } catch (error) {
       print("Error: " + JSON.stringify(error));
@@ -68,10 +68,15 @@ function waitForMqtt(callback){
 function init(callback){
   Shelly.call('MQTT.GetConfig', {}, function(result, error_code, error_message, userdata){
     if(error_code === 0 && result){
-      DYNCONFIG.mqttTopicPrefix = result.topic_prefix;
-      DYNCONFIG.mqttClientId = result.client_id;
+      ENV.mqttTopicPrefix = result.topic_prefix;
+      ENV.mqttClientId = result.client_id;
     }
-    waitForMqtt(callback);
+    waitForMqtt(function(){
+      // wait another second
+      Timer.set(1000, false, function(){
+        callback();
+      });
+    });
   });
 }
 
