@@ -4,8 +4,6 @@ let DYNCONFIG = {
   mqttTopicPrefix: undefined,
   mqttClientId: undefined
 };
-let TIMER_HANDLE_INIT = undefined;
-let TESTCOUNT = 0;
 
 function log(message){
   try {
@@ -29,12 +27,11 @@ function log(message){
 
 function waitForMqtt(callback){
   if(MQTT.isConnected){
-     callback();
+    callback();
   } else {
-    TIMER_HANDLE_INIT = Timer.set(2000, true, function(){    
+    let timerHandle = Timer.set(2000, true, function(){
       if(MQTT.isConnected){
-        if(TIMER_HANDLE_INIT) Timer.clear(TIMER_HANDLE_INIT);
-        log('MQTT Ready');
+        Timer.clear(timerHandle);
         callback();
       }
     });
@@ -47,18 +44,22 @@ function init(callback){
       DYNCONFIG.mqttTopicPrefix = result.topic_prefix;
       DYNCONFIG.mqttClientId = result.client_id;
     }
-    waitForMqtt(function(){
-      // wait another second
-      Timer.set(1000, false, function(){
-        callback();
-      });
-    });
+    waitForMqtt(callback);
   });
 }
 
 function main(){
-    // ToDo: Get restart Timestamp etc.
-    log('Restart detected!');  
+  Shelly.call('Sys.GetStatus', {}, function(result, error_code, error_message){
+    if(error_code === 0 && result){
+      if(result.uptime < 300){
+        log({message: 'Device restart detected', uptime: result.uptime});
+      } else {
+        log({message: 'Script restarted', uptime: result.uptime});
+      }
+    } else {
+      log({error: error_code, message: error_message});
+    }
+  })
 }
 
 init(main);
