@@ -11,6 +11,12 @@ let entities = {
   },
 }
 
+let SYNCTRV = {
+  masterId: 201,
+  slaveId: 202,
+  lastValvePosition: null
+}
+
 let ENV = {
   mqttTopicPrefix: undefined,
   mqttClientId: undefined
@@ -72,6 +78,27 @@ function main(){
   
     if(entity){
       log('Event ' + entity.name + ': ' + JSON.stringify(event));
+    }
+
+    if(event.component === 'blutrv:' + SYNCTRV.masterId){
+      Shelly.call('BluTrv.Call', {id:SYNCTRV.masterId, method: 'Shelly.GetStatus', params:{id:0}}, function(result, error_code, error_message, synctrv){
+        
+        if(error_code > 0) {
+          print('ErrorCode: ' + error_code + '; Message: ' + error_message);
+        }
+        
+        let newpos = result['trv:0'].pos;
+        if(newpos != synctrv.lastValvePosition){
+          print('sync to slave: ' + newpos);
+          Shelly.call('BluTrv.Call', {id:synctrv.slaveId, method: 'TRV.SetPosition', params:{id:0, pos: newpos}}, function(result, error_code, error_message, newpos){
+            if(error_code > 0) {
+              print('ErrorCode: ' + error_code + '; Message: ' + error_message);
+            }
+            SYNCTRV.lastValvePosition = newpos;
+          }, newpos);
+        }
+      }, SYNCTRV);
+      
     }
   });
 
