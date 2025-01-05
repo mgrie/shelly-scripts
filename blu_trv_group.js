@@ -77,7 +77,7 @@ function initDevice(callback){
 
 function registerHandlers(){
   log('registerHandlers');
-  
+
   Shelly.addEventHandler(function(event, ud){
     if(!event) return;
     
@@ -124,5 +124,6 @@ function registerHandlers(){
   });  
 }
 
-
-initEnv(initDevice(registerHandlers));
+initEnv(function() {
+  initDevice(registerHandlers);
+})
