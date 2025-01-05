@@ -42,7 +42,7 @@ function log(message){
   }
 }
 
-function init(callback){
+function initEnv(callback){
   Shelly.call('MQTT.GetConfig', {}, function(result, error_code, error_message, userdata){
     if(error_code === 0 && result){
       ENV.mqttTopicPrefix = result.topic_prefix;
@@ -70,7 +70,14 @@ function setNewTargetTemparature(masterId, target_C){
   }
 }
 
-function main(){
+function initDevice(callback){
+  log('initDevice');
+  callback();
+}
+
+function registerHandlers(){
+  log('registerHandlers');
+  
   Shelly.addEventHandler(function(event, ud){
     if(!event) return;
     
@@ -118,4 +125,4 @@ function main(){
 }
 
 
-init(main);
+initEnv(initDevice(registerHandlers));
