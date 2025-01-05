@@ -1,27 +1,39 @@
 /// <reference path="../../shelly-script.d.ts" />
 
-let entities = {
-  'bthomesensor:225' : {
-    name: 'Target Temp Lehrerzimmer west',
-    trvId: 201
-  },
-  'bthomesensor:233' : {
-    name: 'Target Temp Lehrerzimmer nord',
-    trvId: 202
-  },
+/**
+ * BLU TRV Group for Shelly
+ *
+ * Autor:   Marco Grießhammer (https://github.com/mgrie)
+ * Date:    2025-01-05
+ * Version: 0.4 alpha
+ * Github:  https://github.com/mgrie/shelly-scripts/blob/main/smart-lightswitch.js
+ *
+ * 
+ * WARNING: Not tested with more than 1 Slaves. The Trv.SetPosition calls could be to fast for the device.
+ */
+
+const CONFIG = {
+  autoconfig: true,
+  master: {
+      trvId: 201,
+      targetTempSensor: 'bthomesensor:225'
+    },
+  slaves: [
+    {
+      trvId: 202,
+      targetTempSensor: 'bthomesensor:233',
+      lastValvePosition: null
+    }
+  ]
 }
 
-let SYNCTRV = {
-  masterId: 201,
-  slaveId: 202,
-  lastValvePosition: null
-}
-
+// set dynamic at initEnv()
 let ENV = {
   mqttTopicPrefix: undefined,
   mqttClientId: undefined
 };
 
+// logger
 function log(message){
   try {
       if(typeof message === 'object' ){
@@ -42,27 +54,40 @@ function log(message){
   }
 }
 
+// init script environment
 function initEnv(callback){
   Shelly.call('MQTT.GetConfig', {}, function(result, error_code, error_message, userdata){
+    if(error_code) log({error_code, error_message});
+    
     if(error_code === 0 && result){
       ENV.mqttTopicPrefix = result.topic_prefix;
       ENV.mqttClientId = result.client_id;
     }
+
     callback();
   });
 }
 
-function setNewTargetTemparature(masterId, target_C){
-  for (const key in entities) {
-    if (entities.hasOwnProperty(key)) {
-      if(key !== masterId){
-        log("Zieltemperatur " + target_C +  " setzen für: " + entities[key].name); 
-        log("TRV Id: " + entities[key].trvId)
+// init device if autoconfig flag is set
+function initDevice(callback){
+  if(CONFIG.autoconfig){
+    log('initDevice');
 
+    //ToDo: enable master, disable slaves
+  
+  }
 
-        Shelly.call("BluTrv.call", { id: entities[key].trvId, method: 'Trv.SetTarget', params: {id:0, target_C: target_C}}, function(result, error_code, error_message){
-          if(error_code) 
-            log({error_code: error_code, error_message: error_message});
+  callback();
+}
+
+function setNewTargetTemparature(sourceId, targetMap, target_C){
+  for (const key in targetMap) {
+    if (targetMap.hasOwnProperty(key)) {
+      if(key !== sourceId){
+        log("Set new target temperature " + target_C + " for TRV: " + targetMap[key]); 
+
+        Shelly.call("BluTrv.call", { id: targetMap[key], method: 'Trv.SetTarget', params: {id:0, target_C: target_C}}, function(result, error_code, error_message){
+          if(error_code) log({error_code, error_message});
           if(result) log(result);
         });
       }
@@ -70,58 +95,66 @@ function setNewTargetTemparature(masterId, target_C){
   }
 }
 
-function initDevice(callback){
-  log('initDevice');
-  callback();
+function syncSlaves(slaves, newValvePosition){
+  for(slave in slaves){
+
+    if(newValvePosition != slave.lastValvePosition){
+      log('Set valve position of ' + slave.trvId + ' to: ' + newValvePosition);
+      Shelly.call('BluTrv.Call', {id:slave.trvId, method: 'TRV.SetPosition', params:{id:0, pos: newpos}}, function(result, error_code, error_message, ud){
+        if(error_code) {
+          log({error_code, error_message});
+        } 
+        else {
+          ud.slave.lastValvePosition = ud.newValvePosition;
+        }
+      }, {slave, newValvePosition});
+    }
+  }
 }
 
 function registerHandlers(){
   log('registerHandlers');
 
-  Shelly.addEventHandler(function(event, ud){
-    if(!event) return;
-    
-    let entity = entities[event.component];
-  
-    if(entity){
-      log('Event ' + entity.name + ': ' + JSON.stringify(event));
-    }
-
-    if(event.component === 'blutrv:' + SYNCTRV.masterId){
-      Shelly.call('BluTrv.Call', {id:SYNCTRV.masterId, method: 'Shelly.GetStatus', params:{id:0}}, function(result, error_code, error_message, synctrv){
-        
-        if(error_code > 0) {
-          print('ErrorCode: ' + error_code + '; Message: ' + error_message);
-        }
-        
-        let newpos = result['trv:0'].pos;
-        if(newpos != synctrv.lastValvePosition){
-          print('sync to slave: ' + newpos);
-          Shelly.call('BluTrv.Call', {id:synctrv.slaveId, method: 'TRV.SetPosition', params:{id:0, pos: newpos}}, function(result, error_code, error_message, newpos){
-            if(error_code > 0) {
-              print('ErrorCode: ' + error_code + '; Message: ' + error_message);
-            }
-            SYNCTRV.lastValvePosition = newpos;
-          }, newpos);
-        }
-      }, SYNCTRV);
-      
-    }
+  // create map for target temperature triggers
+  let targetMap = {};
+  targetMap[CONFIG.master.targetTempSensor] = CONFIG.master.trvId;
+  CONFIG.slaves.forEach(function(slave){
+    targetMap[slave.targetTempSensor] = slave.trvId;
   });
 
-  Shelly.addStatusHandler(function(event, ud){
+  Shelly.addStatusHandler(function(event, targetMap){
     if(!event) return;
     
-    let entity = entities[event.component];
+    let targetSrc = targetMap[event.component];
   
-    if(entity){
+    // trigger: sync target temparature
+    if(targetSrc){
       if(event.delta && event.delta.value) {
-        log('Status ' + entity.name + ' target temp: ' + event.delta.value);
+        log('Target temperature of ' + event.component + ' set to: ' + event.delta.value);
   
-        setNewTargetTemparature(event.component, event.delta.value);
+        setNewTargetTemparature(event.component, targetMap, event.delta.value);
       }
     }
-  });  
+  }, targetMap);
+
+  Shelly.addEventHandler(function(event, config){
+    if(!event) return;
+    
+    // trigger: sync valve position
+    if(event.component === 'blutrv:' + config.master.trvId){
+      Shelly.call('BluTrv.Call', {id:config.master.trvId, method: 'Shelly.GetStatus', params:{id:0}}, function(result, error_code, error_message, slaves){
+        
+        if(error_code) {
+          log({error_code, error_message});
+        } else {
+          let newValvePosition = result['trv:0'].pos;
+          syncSlaves(slaves, newValvePosition);
+        }
+
+      }, config.slaves);
+      
+    }
+  }, CONFIG);
 }
 
 initEnv(function() {
