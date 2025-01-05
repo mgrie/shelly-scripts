@@ -10,6 +10,7 @@
  *
  * ToDo: autoconfig not implemented.
  * ToDo: prevent second target temperature trigger
+ * Idea: correction offset for small radiators
  * 
  * Disable all Slaves to support 'SetPosition' feature by calling 'Trv.SetConfig', example for TRV Id 202:
  * http://192.168.xxx.xxx/rpc/BluTrv.Call?id=202&method=TRV.SetConfig&params={id:0,config:{enable:false}}
