@@ -8,9 +8,19 @@
  * Version: 0.5
  * Github:  https://github.com/mgrie/shelly-scripts/blob/main/smart-havac.js
  *
+ * ToDo: Make MQTT optional
+
+Example Home Assistant Config
+
+virtual component docu
+
+push current temp example
+ 
  */
 
-let ENTITIES = [
+// Configuration
+// ToDo: Rename entities?
+const ENTITIES = [
   {
     valveId: 0,
     hysteresis: 0.2,
@@ -37,11 +47,13 @@ let ENTITIES = [
   }  
 ];
 
+// set dynamic at initEnv()
 let ENV = {
   mqttTopicPrefix: undefined,
   mqttClientId: undefined
 };
 
+// logger
 function log(message){
   try {
       if(typeof message === 'object' ){
@@ -62,31 +74,14 @@ function log(message){
   }
 }
 
-function waitForMqtt(callback){
-  if(MQTT.isConnected){
-    callback();
-  } else {
-    let timerHandle = Timer.set(2000, true, function(){
-      if(MQTT.isConnected){
-        Timer.clear(timerHandle);
-        callback();
-      }
-    });
-  }
-}
-
-function init(callback){
+function initEnv(callback){
   Shelly.call('MQTT.GetConfig', {}, function(result, error_code, error_message, userdata){
     if(error_code === 0 && result){
       ENV.mqttTopicPrefix = result.topic_prefix;
       ENV.mqttClientId = result.client_id;
     }
-    waitForMqtt(function(){
-      // wait another second
-      Timer.set(1000, false, function(){
-        callback();
-      });
-    });
+    // ToDo: wait 20 seconds for MQTT Connection after device reboot?
+    callback();
   });
 }
 
@@ -109,13 +104,14 @@ function havacLoop(entity){
   let nextValveState = isHeatingRequired(targetTemp, currentTemp, entity.hysteresis, currentValveState );
   if(currentValveState !== nextValveState ) {
      log('New valve state: ' + nextValveState);
+     // switch valve state on/off
      Shelly.call("Switch.set", {'id': entity.valveId, 'on': nextValveState});
   }   
   
-  sendStatusMessage(entity.valveId, targetTemp, currentTemp, nextValveState);
+  sendMqttStatusMessage(entity.valveId, targetTemp, currentTemp, nextValveState);
 }
 
-function sendStatusMessage(valveId, targetTemp, currentTemp, valveState) {
+function sendMqttStatusMessage(valveId, targetTemp, currentTemp, valveState) {
   var message = {
     target_T: targetTemp,
     current_T: currentTemp,
@@ -123,7 +119,7 @@ function sendStatusMessage(valveId, targetTemp, currentTemp, valveState) {
     clientId: DYNCONFIG.mqttClientId,
     valveId: valveId
   };
-  
+  // ToDo: Check if MQTT is enabled?
   MQTT.publish(DYNCONFIG.mqttTopicPrefix +  '/havac/status/'  + valveId, JSON.stringify(message) );
 }
 
@@ -154,6 +150,7 @@ function registerStatusHandler(entites){
   }, componentMap);
 };
 
+// subscribeMqtt for incomming havac commands
 function subscribeMqtt(entities){
   MQTT.subscribe(DYNCONFIG.mqttTopicPrefix + '/havac/set/#', function(topic, message, entities){
     log(message);
@@ -163,14 +160,17 @@ function subscribeMqtt(entities){
 
     /*
 
-    ToDo: Error handling
+    ToDo: Error handling, check parameters
 
+    not like this :)
     if(!valveId) return;
     if(!data) return;
+    
     */
 
     let entity = null;
 
+    // ToDo: use a map instead of iterate?
     for (let i = 0; i < entities.length; i++) {
       log(JSON.stringify(entities[i]));
       if (entities[i].valveId === valveId) {
@@ -202,4 +202,4 @@ function main() {
 
 }
 
-init(main);
+initEnv(main);
