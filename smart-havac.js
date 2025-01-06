@@ -177,7 +177,7 @@ function initEntities(entities) {
 
   return entities;
 }
-+
+
 function registerStatusHandler(entites){
 
   // create a lookup map
