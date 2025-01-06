@@ -1,5 +1,15 @@
 /// <reference path="../../shelly-script.d.ts" />
 
+/**
+ * Smart HAVAC for Shelly Pro Gen2 and Shelly Gen3
+ *
+ * Autor:   Marco Grießhammer (https://github.com/mgrie)
+ * Date:    2025-01-06
+ * Version: 0.5
+ * Github:  https://github.com/mgrie/shelly-scripts/blob/main/smart-havac.js
+ *
+ */
+
 let ENTITIES = [
   {
     valveId: 0,
