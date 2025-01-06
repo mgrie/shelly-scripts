@@ -6,7 +6,7 @@
  * Autor:   Marco Grießhammer (https://github.com/mgrie)
  * Date:    2025-01-05
  * Version: 0.4
- * Github:  https://github.com/mgrie/shelly-scripts/blob/main/smart-lightswitch.js
+ * Github:  https://github.com/mgrie/shelly-scripts/blob/main/blu_trv_group.js
  *
  * ToDo: autoconfig not implemented.
  * ToDo: prevent second target temperature trigger
