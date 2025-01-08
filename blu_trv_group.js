@@ -1,12 +1,13 @@
 /// <reference path="../../shelly-script.d.ts" />
 
 /**
- * BLU TRV Group for Shelly
+ * Shelly BLU TRV Group
  *
- * Autor:   Marco Grießhammer (https://github.com/mgrie)
- * Date:    2025-01-05
- * Version: 0.4
- * Github:  https://github.com/mgrie/shelly-scripts/blob/main/blu_trv_group.js
+ * Autor:      Marco Grießhammer (https://github.com/mgrie)
+ * Date:       2025-01-05
+ * Version:    0.4
+ * Github:     https://github.com/mgrie/shelly-scripts/blob/main/blu_trv_group.js
+ * Disclaimer: Use at your own Risk!
  *
  * ToDo: autoconfig not implemented.
  * ToDo: prevent second target temperature trigger
